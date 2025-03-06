@@ -1,0 +1,53 @@
+{
+    "name": "Task planner",
+    "description": "Task planner",
+    "type": "php",
+    "languages": [
+        "php",
+        "es6"
+    ],
+    "entry_points": [],
+    "modules": [
+        {
+            "src": "src/main",
+            "type": "folder"
+        },
+        {
+            "src": "src/plugins",
+            "type": "folder"
+        }
+    ],
+    "assets": [
+        {
+            "type": "js",
+            "dest": "src/public/assets/runtime.js",
+            "modules": [
+                "@runtime",
+                "@widget"
+            ]
+        },
+        {
+            "type": "js",
+            "dest": "src/public/assets/app.js",
+            "modules": [
+                "@app"
+            ]
+        },
+        {
+            "type": "js",
+            "dest": "src/public/assets/admin.js",
+            "modules": [
+                "@admin"
+            ]
+        },
+        {
+            "type": "js",
+            "dest": "src/public/assets/constructor.js",
+            "modules": [
+                "@constructor"
+            ]
+        }
+    ],
+    "exclude": [],
+    "domains": []
+}
