@@ -63,7 +63,7 @@ static class ModuleDescription
 	[
 		/* Setup layout */
 		SetupLayout::create({
-			"admin": "App.Components.Layout.AdminLayoutModel",
+			"default": "App.Components.Layout.DefaultLayoutModel",
 		}),
 		
 		/* Setup hook */

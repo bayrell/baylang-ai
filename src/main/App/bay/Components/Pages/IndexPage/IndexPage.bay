@@ -18,8 +18,113 @@
 
 <class name="App.Components.Pages.IndexPage.IndexPage">
 
+<use name="Runtime.Widget.Button" component="true" />
+<use name="App.Components.Pages.IndexPage.ChatHistory" />
+
+
+<style>
+.content{
+	display: flex;
+	min-height: 100vh;
+}
+.chat_list{
+	width: 200px;
+	border-right: 1px var(--widget-color-border) solid;
+	&_title{
+		display: flex;
+		position: relative;
+		align-items: center;
+		font-weight: bold;
+		text-align: center;
+		span{
+			flex: 1;
+			margin: 10px 50px;
+		}
+		.create_chat{
+			position: absolute;
+			border-width: 0;
+			right: 0;
+		}
+	}
+	&_item{
+		padding: 5px;
+		cursor: pointer;
+		&:hover{
+			background-color: var(--widget-color-hover);
+		}
+		&.active{
+			background-color: var(--widget-color-primary);
+			color: white;
+		}
+	}
+}
+.history{
+	flex: 1;
+}
+</style>
+
+
+<template name="renderChat">
+	<div class="chat_list">
+		<div class="chat_list_title">
+			<span>Chat</span>
+			<Button class="create_chat" styles=["small"]
+				@event:click={{
+					void ()
+					{
+						this.model.onAddClick();
+					}
+				}}
+			>New</Button>
+		</div>
+		%for (int i=0; i<this.model.chats.count(); i++)
+		{
+			%set ChatHistory history = this.model.chats.get(i);
+			<div class="chat_list_item"
+				class={{ this.model.selected_id == history.id ? "active" : "" }}
+				@event:click={{
+					void () use (history)
+					{
+						this.model.select(history);
+						this.model.context_menu.hide();
+					}
+				}}
+				@event:contextmenu={{
+					void (var e)
+					{
+						e.preventDefault();
+						this.model.context_menu.show(e.pageX, e.pageY);
+					}
+				}}
+			>
+				{{ history.title }}
+			</div>
+		}
+		%render this.renderWidget(this.model.context_menu);
+		%render this.renderWidget(this.model.add_dialog);
+		%render this.renderWidget(this.model.prompt_dialog);
+		%render this.renderWidget(this.model.delete_dialog);
+	</div>
+</template>
+
+
+<template name="renderHistory">
+	<div class="history">
+	</div>
+</template>
+
+
 <template>
-	<div class="content">
+	<div class="content"
+		@event:click={{
+			void ()
+			{
+				this.model.context_menu.hide();
+			}
+		}}
+	>
+		%render this.renderChat();
+		%render this.renderHistory();
 	</div>
 </template>
 

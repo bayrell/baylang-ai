@@ -18,14 +18,274 @@
 
 namespace App.Components.Pages.IndexPage;
 
+use Runtime.lib;
+use Runtime.Callback;
+use Runtime.DateTime;
+use Runtime.Serializer;
 use Runtime.Web.BasePageModel;
+use Runtime.Web.ModelFactory;
 use Runtime.Web.RenderContainer;
+use Runtime.Widget.ButtonModel;
+use Runtime.Widget.Select;
+use Runtime.Widget.TextArea;
+use Runtime.Widget.ContextMenu.ContextMenuMessage;
+use Runtime.Widget.ContextMenu.ContextMenuModel;
+use Runtime.Widget.Crud.RulesManager;
+use Runtime.Widget.Crud.Rules.Required;
+use Runtime.Widget.Dialog.ConfirmDialogModel;
+use Runtime.Widget.Dialog.DialogMessage;
+use Runtime.Widget.Dialog.DialogModelException;
+use Runtime.Widget.Dialog.PromptDialogModel;
+use Runtime.Widget.Form.FormModel;
+use Runtime.Widget.Table.SaveDialogModel;
+use App.Components.Pages.IndexPage.ChatHistory;
+use App.Components.Pages.IndexPage.ChatMessage;
 use App.Components.Pages.IndexPage.IndexPage;
 
 
 class IndexPageModel extends BasePageModel
 {
 	string component = classof IndexPage;
+	string selected_id = "";
+	RulesManager create_rules = null;
+	Collection<ChatHistory> chats = [];
+	ContextMenuModel context_menu = null;
+	SaveDialogModel add_dialog = null;
+	PromptDialogModel prompt_dialog = null;
+	ConfirmDialogModel delete_dialog = null;
+	
+	
+	/**
+	 * Init widget
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Add context menu */
+		this.context_menu = this.addWidget(classof ContextMenuModel, {
+			"items":
+			[
+				{
+					"key": "rename",
+					"label": "Rename",
+				},
+				{
+					"key": "delete",
+					"label": "Delete",
+				},
+			],
+			"events":
+			{
+				"clickItem": new Callback(this, "onContextMenu"),
+			},
+		});
+		
+		/* Create rules */
+		this.create_rules = new RulesManager;
+		this.create_rules.addRules([
+			new Required{"name": "model"},
+			new Required{"name": "message"},
+		]);
+		
+		/* Add dialog */
+		this.add_dialog = this.addWidget(classof SaveDialogModel, {
+			"title": "New chat",
+			"events":
+			{
+				"confirm": new Callback(this, "onCreateChat"),
+			},
+		});
+		this.add_dialog.action = "add";
+		this.add_dialog.add_form = this.add_dialog.addWidget(classof FormModel, {
+			"show_result": false,
+			"fields":
+			[
+				{
+					"name": "model",
+					"label": "Model name",
+					"component": classof Select,
+					"props":
+					{
+						"options":
+						[
+							{"key": "ollama", "value": "Ollama"},
+						],
+					},
+				},
+				{
+					"name": "message",
+					"label": "Message",
+					"component": classof TextArea,
+				}
+			],
+		});
+		ButtonModel confirm_button = this.add_dialog.buttons.getWidget("confirm_button");
+		confirm_button.content = "Add";
+		confirm_button.styles = ["success"];
+		
+		/* Add prompt dialog */
+		this.prompt_dialog = this.addWidget(classof PromptDialogModel, {
+			"title": "Rename item"
+			"events":
+			{
+				"confirm": new Callback(this, "onRenameItem"),
+			},
+		});
+		
+		/* Add delete dialog */
+		this.delete_dialog = this.addWidget(classof ConfirmDialogModel, {
+			"title": "Delete item"
+			"content": "Delete message",
+			"events":
+			{
+				"confirm": new Callback(this, "onDeleteItem"),
+			},
+		});
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
+	}
+	
+	
+	/**
+	 * Select chat
+	 */
+	void select(ChatHistory item)
+	{
+		this.selected_id = item.id;
+	}
+	
+	
+	/**
+	 * Returns selected item
+	 */
+	ChatHistory getSelectedItem() =>
+		this.chats.findItem(lib::equalAttr("id", this.selected_id))
+	;
+	
+	
+	/**
+	 * Add click
+	 */
+	void onAddClick()
+	{
+		this.add_dialog.add_form.clear();
+		this.add_dialog.show();
+	}
+	
+	
+	/**
+	 * Add new chat
+	 */
+	async void onCreateChat()
+	{
+		this.create_rules.clear();
+		this.create_rules.setCreate(true);
+		await this.create_rules.validate(this.add_dialog.add_form.item);
+		if (not this.create_rules.correct())
+		{
+			string error_message = "Fields error";
+			this.add_dialog.add_form.fields_error = this.create_rules.fields;
+			this.add_dialog.add_form.result.setError(error_message)
+			throw new DialogModelException(error_message);
+		}
+		
+		/* Create new chat */
+		string chat_id = DateTime::now().getTimestamp();
+		ChatHistory new_chat_item = new ChatHistory
+		{
+			"id": chat_id,
+			"title": "Chat " ~ chat_id,
+			"message":
+			[
+				new ChatMessage
+				{
+					"kind": "human",
+					"message": this.add_dialog.add_form.item.get("message"),
+				},
+			],
+		};
+		
+		/* Add created chat */
+		this.select(new_chat_item);
+		this.chats.prepend(new_chat_item);
+	}
+	
+	
+	/**
+	 * Rename item
+	 */
+	async void onRenameItem(DialogMessage message)
+	{
+		ChatHistory selected_item = message.widget.data.get("selected_item");
+		selected_item.title = message.value;
+	}
+	
+	
+	/**
+	 * Delete item
+	 */
+	async void onDeleteItem(DialogMessage message)
+	{
+		ChatHistory selected_item = message.widget.data.get("selected_item");
+		int pos = this.chats.find(lib::equalAttr("id", selected_item.id));
+		this.chats.remove(pos);
+	}
+	
+	
+	/**
+	 * Context menu click
+	 */
+	void onContextMenu(ContextMenuMessage message)
+	{
+		string item_key = message.item.get("key");
+		if (item_key == "rename")
+		{
+			ChatHistory history = this.getSelectedItem();
+			if (history)
+			{
+				this.prompt_dialog.data =
+				{
+					"selected_id": history.id,
+					"selected_item": history,
+				};
+				this.prompt_dialog.title = "Rename " ~ history.title;
+				this.prompt_dialog.setValue(history.title);
+				this.prompt_dialog.show();
+			}
+		}
+		else if (item_key == "delete")
+		{
+			ChatHistory history = this.getSelectedItem();
+			if (history)
+			{
+				this.delete_dialog.data =
+				{
+					"selected_id": history.id,
+					"selected_item": history,
+				};
+				this.delete_dialog.content = "Delete " ~ history.title ~ "?";
+				this.delete_dialog.show();
+			}
+		}
+	}
+	
+	
+	/**
+	 * Process frontend data
+	 */
+	void serialize(Serializer serializer, Map data)
+	{
+		serializer.process(this, "chats", data);
+		parent(serializer, data);
+	}
 	
 	
 	/**
