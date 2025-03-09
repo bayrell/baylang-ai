@@ -22,7 +22,7 @@ function start_uvicorn()
 function stop_uvicorn()
 {
 	echo "Stop uvicorn"
-	sudo kill `ps -aux | grep uvicorn | awk '{print $2}'`
+	sudo kill `ps -aux | grep server:app | awk '{print $2}'`
 }
 
 case "$1" in

@@ -152,9 +152,10 @@ void onMounted()
 /**
  * Socket connect event
  */
-void onOpenSocket()
+void onConnect()
 {
 	log("Connected")
+	this.ws.send("Test message")
 }
 
 

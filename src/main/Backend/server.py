@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -21,4 +21,13 @@ def root():
 @app.websocket("/socket")
 async def chat_endpoint(websocket: WebSocket):
     await websocket.accept()
-    await websocket.send_text("Hello, World!")
+    try:
+        while True:
+            user_message = await websocket.receive_text()
+            await websocket.send_text(user_message)
+    
+    except WebSocketDisconnect:
+        print("Disconnected")
+    
+    except Exception as e:
+        print(f"WebSocket error: {e}")
