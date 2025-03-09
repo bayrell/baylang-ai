@@ -1,0 +1,1 @@
+DOCUMENT_ROOT=/app/src/public

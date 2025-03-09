@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<template>
+	<uid>org.bayrell.baylang_ai</uid>
+	<name>BayLang AI</name>
+	<version>1.0</version>
+	<maintainer>Ildar &lt;ildar@bayrell.org&gt;</maintainer>
+	<marketplace>https://cloud.bayrell.org/</marketplace>
+	<date>2025-03-09T20:25:07+06:00</date>
+	<arch>amd64</arch>
+	<link name="Docker hub">https://hub.docker.com/r/bayrell/baylang_ai</link>
+	<link name="Github">https://github.com/bayrell/baylang_ai</link>
+	<xml name="github.com">https://raw.githubusercontent.com/bayrell/baylang-ai/main/org.bayrell.baylang_ai.xml</xml>
+	<yaml>
+		<services>
+			<_var_app_name_>
+				<image>docker.io/bayrell/baylang_ai:1.0</image>
+				<hostname>{{.Service.Name}}.{{.Task.ID}}.local</hostname>
+				<environment>
+				</environment>
+				<volumes>_var_app_name_:/data</volumes>
+			</_var_app_name_>
+		</services>
+    <volumes>
+		<_var_app_name_ />
+    </volumes>
+	</yaml>
+	<variables>
+	</variables>
+	<modificators>
+		<li>org.bayrell.modificator.cloud_os</li>
+		<li>org.bayrell.modificator.deploy_hostname</li>
+	</modificators>
+	<patch>
+		<name>Template patch</name>
+		<operations>
+		</operations>
+	</patch>
+</template>

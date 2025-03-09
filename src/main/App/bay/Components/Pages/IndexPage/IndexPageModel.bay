@@ -46,6 +46,7 @@ use App.Components.Pages.IndexPage.IndexPage;
 class IndexPageModel extends BasePageModel
 {
 	string component = classof IndexPage;
+	string default_model = "qwen2.5-coder:3b";
 	string selected_id = "";
 	RulesManager create_rules = null;
 	Collection<ChatHistory> chats = [];
@@ -109,7 +110,9 @@ class IndexPageModel extends BasePageModel
 					{
 						"options":
 						[
-							{"key": "ollama", "value": "Ollama"},
+							{"key": "qwen2.5:3b", "value": "qwen2.5:3b"},
+							{"key": "qwen2.5-coder:3b", "value": "qwen2.5-coder:3b"},
+							{"key": "llama3.2:1b", "value": "llama3.2:1b"},
 						],
 					},
 				},
@@ -142,6 +145,9 @@ class IndexPageModel extends BasePageModel
 				"confirm": new Callback(this, "onDeleteItem"),
 			},
 		});
+		ButtonModel confirm_button = this.delete_dialog.buttons.getWidget("confirm_button");
+		confirm_button.content = "Delete";
+		confirm_button.styles = ["danger"];
 	}
 	
 	
@@ -177,6 +183,7 @@ class IndexPageModel extends BasePageModel
 	void onAddClick()
 	{
 		this.add_dialog.add_form.clear();
+		this.add_dialog.add_form.item.set("model", this.default_model);
 		this.add_dialog.show();
 	}
 	
@@ -196,6 +203,9 @@ class IndexPageModel extends BasePageModel
 			this.add_dialog.add_form.result.setError(error_message)
 			throw new DialogModelException(error_message);
 		}
+		
+		/* Save model */
+		this.default_model = this.add_dialog.add_form.item.get("model");
 		
 		/* Create new chat */
 		string chat_id = DateTime::now().getTimestamp();
