@@ -22,6 +22,8 @@ use Runtime.lib;
 use Runtime.Callback;
 use Runtime.DateTime;
 use Runtime.Serializer;
+use Runtime.Entity.Factory;
+use Runtime.Web.ApiResult;
 use Runtime.Web.BasePageModel;
 use Runtime.Web.ModelFactory;
 use Runtime.Web.RenderContainer;
@@ -41,6 +43,7 @@ use Runtime.Widget.Table.SaveDialogModel;
 use App.Components.Pages.IndexPage.ChatHistory;
 use App.Components.Pages.IndexPage.ChatMessage;
 use App.Components.Pages.IndexPage.IndexPage;
+use App.Components.Pages.IndexPage.WebSocket;
 
 
 class IndexPageModel extends BasePageModel
@@ -48,6 +51,7 @@ class IndexPageModel extends BasePageModel
 	string component = classof IndexPage;
 	string default_model = "qwen2.5-coder:3b";
 	string selected_id = "";
+	var socket = new WebSocket(this);
 	RulesManager create_rules = null;
 	Collection<ChatHistory> chats = [];
 	ContextMenuModel context_menu = null;
@@ -100,6 +104,14 @@ class IndexPageModel extends BasePageModel
 		this.add_dialog.action = "add";
 		this.add_dialog.add_form = this.add_dialog.addWidget(classof FormModel, {
 			"show_result": false,
+			"storage": new Factory
+			(
+				"Runtime.Widget.Form.FormSubmitStorage",
+				{
+					"api_name": "chat/app.chat",
+					"method_name": "create",
+				}
+			),
 			"fields":
 			[
 				{
@@ -161,6 +173,31 @@ class IndexPageModel extends BasePageModel
 	
 	
 	/**
+	 * Load chat
+	 */
+	async void loadChat()
+	{
+		ApiResult result = await this.layout.callApi({
+			"api_name": "chat/app.chat",
+			"method_name": "load"
+		});
+		if (not result.isSuccess()) return;
+		
+		Collection items = result.data.get("items");
+		for (int i=0; i<items.count(); i++)
+		{
+			Dict item = items.get(i);
+			ChatHistory history = new ChatHistory
+			{
+				"id": item.get("id"),
+				"title": item.get("name"),
+			};
+			this.chats.append(history);
+		}
+	}
+	
+	
+	/**
 	 * Select chat
 	 */
 	void select(ChatHistory item)
@@ -193,6 +230,7 @@ class IndexPageModel extends BasePageModel
 	 */
 	async void onCreateChat()
 	{
+		/* Check fields */
 		this.create_rules.clear();
 		this.create_rules.setCreate(true);
 		await this.create_rules.validate(this.add_dialog.add_form.item);
@@ -203,22 +241,36 @@ class IndexPageModel extends BasePageModel
 			this.add_dialog.add_form.result.setError(error_message)
 			throw new DialogModelException(error_message);
 		}
+		else
+		{
+			this.add_dialog.add_form.fields_error = {};
+		}
 		
 		/* Save model */
 		this.default_model = this.add_dialog.add_form.item.get("model");
 		
+		/* Submit form */
+		ApiResult result = await this.add_dialog.add_form.submit();
+		if (not result.isSuccess())
+		{
+			this.add_dialog.add_form.result.setApiResult(result);
+			throw new DialogModelException(result.message);
+		}
+		
+		Dict chat = result.data.get("chat");
+		Dict message = result.data.get("message");
+		
 		/* Create new chat */
-		string chat_id = DateTime::now().getTimestamp();
 		ChatHistory new_chat_item = new ChatHistory
 		{
-			"id": chat_id,
-			"title": "Chat " ~ chat_id,
+			"id": chat.get("id"),
+			"title": chat.get("name"),
 			"message":
 			[
 				new ChatMessage
 				{
 					"kind": "human",
-					"message": this.add_dialog.add_form.item.get("message"),
+					"message": message.get("message"),
 				},
 			],
 		};
@@ -244,9 +296,28 @@ class IndexPageModel extends BasePageModel
 	 */
 	async void onDeleteItem(DialogMessage message)
 	{
+		/* Get selected item */
 		ChatHistory selected_item = message.widget.data.get("selected_item");
-		int pos = this.chats.find(lib::equalAttr("id", selected_item.id));
-		this.chats.remove(pos);
+		
+		/* Send api request */
+		ApiResult result = await this.layout.callApi({
+			"api_name": "chat/app.chat",
+			"method_name": "delete",
+			"data":
+			{
+				"pk":
+				{
+					"id": selected_item.id
+				}
+			}
+		});
+		
+		/* Remove chat */
+		if (result.isSuccess())
+		{
+			int pos = this.chats.find(lib::equalAttr("id", selected_item.id));
+			this.chats.remove(pos);
+		}
 	}
 	
 	

@@ -4,10 +4,12 @@
 	[
 		"Components/Layout/DefaultLayout.bay",
 		"Components/Layout/DefaultLayoutModel.bay",
+		"Components/Pages/Adminer/DatabasePage.bay",
 		"Components/Pages/IndexPage/ChatHistory.bay",
 		"Components/Pages/IndexPage/ChatMessage.bay",
 		"Components/Pages/IndexPage/IndexPage.bay",
 		"Components/Pages/IndexPage/IndexPageModel.bay",
+		"Components/Pages/IndexPage/WebSocket.bay",
 		"Components/Pages/NotFoundPage/NotFoundPage.bay",
 		"Components/Pages/NotFoundPage/NotFoundPageModel.bay",
 		"ModuleDescription.bay"

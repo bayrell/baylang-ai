@@ -10,5 +10,6 @@ langchain-ollama==0.2.3
 langchain-text-splitters==0.3.6
 langsmith==0.3.13
 ollama==0.4.7
+python-multipart==0.0.20
 uvicorn==0.34.0
 websockets==15.0.1

@@ -4,7 +4,7 @@ RUN cd ~; \
 	export DEBIAN_FRONTEND='noninteractive'; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends apt-utils; \
-	apt-get install -y --no-install-recommends mc less nano wget pv zip unzip net-tools iputils-ping sudo curl gnupg nginx ca-certificates; \
+	apt-get install -y --no-install-recommends mc less nano wget pv zip unzip net-tools iputils-ping sudo curl gnupg nginx sqlite3 ca-certificates; \
 	apt-get install -y --no-install-recommends php8.1 php8.1-fpm php8.1-curl php8.1-xml php8.1-xmlrpc php8.1-mysql php8.1-sqlite3 php8.1-opcache php8.1-mbstring php8.1-soap php8.1-intl php8.1-tidy; \
 	echo 'Ok'
 
@@ -44,7 +44,7 @@ RUN cd ~; \
 	groupadd -r wheel; \
 	usermod -a -G wheel www-data; \
     addgroup --gid 1000 user; \
-    adduser --uid 1000 --gid 1000 --home /home/user --shell /bin/bash --gecos user \
+    adduser --uid 1000 --gid 1000 --home /data/home --shell /bin/bash --gecos user \
 		--disabled-password -q user; \
     usermod -a -G wheel user; \
     usermod -a -G www-data user; \

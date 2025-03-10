@@ -74,6 +74,7 @@ static class ModuleDescription
 		
 		#ifdef BACKEND then
 		new PageNotFound("App.Components.Pages.NotFoundPage.NotFoundPageModel"),
+		new Route("App.Components.Pages.Adminer.AdminerRoute"),
 		new Route("App.Components.Routes"),
 		#endif
 	];
