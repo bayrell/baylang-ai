@@ -19,7 +19,9 @@
 <class name="App.Components.Pages.IndexPage.IndexPage">
 
 <use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.Widget.TextArea" component="true" />
 <use name="App.Components.Pages.IndexPage.ChatHistory" />
+<use name="App.Components.Pages.IndexPage.ChatMessage" />
 
 
 <style>
@@ -59,7 +61,30 @@
 	}
 }
 .history{
+	display: flex;
 	flex: 1;
+	flex-direction: column;
+	padding: 20px;
+	&_items{
+		flex: 1;
+	}
+	&_message{
+		margin-bottom: 15px;
+	}
+	&_message:last-child{
+		margin-bottom: 0px;
+	}
+	&_add_message{
+		display: flex;
+		align-items: stretch;
+		gap: 20px;
+		%(TextArea)widget_textarea{
+			min-height: 120px;
+		}
+		%(Button)widget_button{
+			width: 150px;
+		}
+	}
 }
 </style>
 
@@ -110,6 +135,26 @@
 
 <template name="renderHistory">
 	<div class="history">
+		%set ChatHistory history = this.model.getSelectedItem();
+		%if (history)
+		{
+			<div class="history_items">
+			%for (int i=0; i<history.messages.count(); i++)
+			{
+				%set ChatMessage item = history.messages.get(i);
+				<div class="history_message">
+					{{ item.text }}
+				</div>
+			}
+			</div>
+			<div class="history_add_message">
+				<TextArea
+					value={{ this.message }}
+					@event:valueChange={{ void (var message) { this.message = message.value } }}
+				/>
+				<Button @event:click={{ this.sendMessage }}>Send</Button>
+			</div>
+		}
 	</div>
 </template>
 
@@ -131,6 +176,20 @@
 <script>
 
 var ws;
+var message = "";
+
+
+/**
+ * Send message
+ */
+void sendMessage()
+{
+	/* Send message */
+	this.model.sendMessage(this.message);
+	
+	/* Clear message */
+	this.message = "";
+}
 
 
 /**

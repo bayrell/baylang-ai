@@ -42,6 +42,28 @@ class ChatHistory extends BaseObject implements SerializeInterface
 	
 	
 	/**
+	 * Add message
+	 */
+	void addMessage(Dict item)
+	{
+		this.messages.append(new ChatMessage(item));
+	}
+	
+	
+	/**
+	 * Add messages
+	 */
+	void addMessages(Collection items)
+	{
+		for (int i=0; i<items.count(); i++)
+		{
+			Dict item = items.get(i);
+			this.addMessage(item);
+		}
+	}
+	
+	
+	/**
 	 * Process frontend data
 	 */
 	void serialize(Serializer serializer, Map data)

@@ -68,13 +68,33 @@ async def action_create(request: Request):
     }
 
 
+@app.post("/app.chat/send")
+async def action_load(request: Request):
+    
+    # Get form data
+    post_data = await request.form()
+    post_data = dict(post_data)
+    chat_id = post_data.get("data[chat_id]")
+    message = post_data.get("data[text]")
+    
+    # Add message
+    await add_message(chat_id, "human", message)
+    
+    return {
+        "code": 1,
+        "message": "Ok",
+        "data": {
+        },
+    }
+
+
 @app.post("/app.chat/delete")
 async def action_delete(request: Request):
     
     # Get form data
     post_data = await request.form()
     post_data = dict(post_data)
-    chat_id = post_data.get("data[pk][id]")
+    chat_id = post_data.get("data[chat_id]")
     
     # Delete chat
     await delete_chat(chat_id)

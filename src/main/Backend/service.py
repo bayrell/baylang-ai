@@ -126,7 +126,37 @@ async def get_chat_items():
     """
     Получить список всех чатов
     """
-    return await execute_fetch("select * from chats")
+    
+    items = await execute_fetch("select * from chats")
+    if not items:
+        return []
+    
+    index = {}
+    items_id = []
+    result = []
+    for pos, item in enumerate(items):
+        item_id = item["id"]
+        index[item_id] = pos
+        item = dict(item)
+        item["messages"] = []
+        items_id.append(item_id)
+        result.append(item)
+    
+    # Получаем все сообщения для этих чатов
+    query_messages = f"""
+        SELECT * FROM messages
+        WHERE chat_id IN ({','.join(['?'] * len(items_id))})
+        ORDER BY chat_id, gmtime_created;
+    """
+    messages = await execute_fetch(query_messages, items_id)
+    
+    for message in messages:
+        chat_id = message["chat_id"]
+        chat_pos = index[chat_id] if chat_id in index else None
+        if pos is not None:
+            result[chat_pos]["messages"].append(message)
+    
+    return result
 
 
 async def add_message(chat_id: int, sender: str, text: str):

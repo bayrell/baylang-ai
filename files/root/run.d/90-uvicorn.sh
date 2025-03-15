@@ -19,10 +19,21 @@ function start_uvicorn()
 	bash /root/run.d/90-uvicorn.sh run &
 }
 
+function stop_app()
+{
+	PID=`pgrep -f "$1"`
+	for id in $PID
+	do
+		app=`pgrep -P $id`
+		sudo kill -s 9 $app $id > /dev/null 2>/dev/null
+	done
+}
+
 function stop_uvicorn()
 {
 	echo "Stop uvicorn"
-	sudo kill `ps -aux | grep server:app | awk '{print $2}'`
+	stop_app "multiprocessing"
+	stop_app "uvicorn server:app"
 }
 
 case "$1" in
