@@ -1,10 +1,23 @@
-import sqlite3
-import asyncio
-import time
+import asyncio, json, sqlite3, time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 executor = ThreadPoolExecutor(max_workers=1)
+
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
+def json_encode(obj, indent=2):
+    return json.dumps(obj, indent=indent, cls=JSONEncoder, ensure_ascii=False)
 
 
 def get_current_datetime():
@@ -122,12 +135,12 @@ async def get_chat_by_id(id):
     return await execute_fetch("select * from chats where id=?", (id,), True)
 
 
-async def get_chat_items():
+async def get_chat_items_by_query(query, params=None):
     """
     Получить список всех чатов
     """
     
-    items = await execute_fetch("select * from chats")
+    items = await execute_fetch(query, params)
     if not items:
         return []
     
@@ -146,7 +159,7 @@ async def get_chat_items():
     query_messages = f"""
         SELECT * FROM messages
         WHERE chat_id IN ({','.join(['?'] * len(items_id))})
-        ORDER BY chat_id, gmtime_created;
+        ORDER BY id, gmtime_created;
     """
     messages = await execute_fetch(query_messages, items_id)
     
@@ -157,6 +170,10 @@ async def get_chat_items():
             result[chat_pos]["messages"].append(message)
     
     return result
+
+
+async def get_chat_items():
+    return await get_chat_items_by_query("select * from chats")
 
 
 async def add_message(chat_id: int, sender: str, text: str):
@@ -170,9 +187,45 @@ async def add_message(chat_id: int, sender: str, text: str):
     )
 
 
+async def update_chat_message(message_id: int, text: str):
+    """
+    Функция обновления сообщения
+    """
+    gmtime_now = get_current_datetime()
+    return await execute(
+        "UPDATE messages SET text=?, gmtime_updated=? WHERE id=?",
+        (text, gmtime_now, message_id)
+    )
+
+
 async def get_message_by_id(id):
     """
     Получить чат по id
     """
     return await execute_fetch("select * from messages where id=?", (id,), True)
 
+
+async def get_prompt(chat_id, system_message, question):
+
+    """
+    Получить промт на основе вопроса и истории
+    """
+    
+    # Получаем все сообщения чата
+    query = f"""
+        SELECT * FROM messages
+        WHERE chat_id = ?
+        ORDER BY id, gmtime_created;
+    """
+    messages = await execute_fetch(query, [chat_id])
+    messages = messages[-10:]
+    
+    # Создаем промт
+    prompt = []
+    if system_message:
+        prompt += [("system", system_message)]
+    for item in messages:
+        if item["text"] and item["sender"] == "human":
+            prompt += [(item["sender"], item["text"])]
+    
+    return prompt

@@ -27,7 +27,7 @@
 <style>
 .content{
 	display: flex;
-	min-height: 100vh;
+	height: 100vh;
 }
 .chat_list{
 	width: 200px;
@@ -67,12 +67,14 @@
 	padding: 20px;
 	&_items{
 		flex: 1;
+		overflow: auto;
+		padding-right: 15px;
 	}
 	&_message{
 		margin-bottom: 15px;
 	}
-	&_message:last-child{
-		margin-bottom: 0px;
+	&_message.human{
+		text-align: right;
 	}
 	&_add_message{
 		display: flex;
@@ -142,8 +144,12 @@
 			%for (int i=0; i<history.messages.count(); i++)
 			{
 				%set ChatMessage item = history.messages.get(i);
-				<div class="history_message">
-					{{ item.text }}
+				<div class="history_message" class={{ item.sender }}>
+					%set Collection lines = item.getMessage();
+					%for (int j=0; j<lines.count(); j++)
+					{
+						<p>{{ lines.get(j) }}</p>
+					}
 				</div>
 			}
 			</div>

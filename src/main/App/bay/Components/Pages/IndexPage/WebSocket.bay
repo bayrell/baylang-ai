@@ -19,6 +19,7 @@
 namespace App.Components.Pages.IndexPage;
 
 use Runtime.BaseObject;
+use App.Components.Pages.IndexPage.ChatHistory;
 use App.Components.Pages.IndexPage.IndexPageModel;
 
 
@@ -88,7 +89,16 @@ class WebSocket extends BaseObject
 	 */
 	void onMessage(var message)
 	{
-		log(message.data);
+		Dict item = rtl::json_decode(message.data);
+		string event = item.get("event");
+		if (event == "send_message")
+		{
+			Dict message = item.get("message");
+			this.model.updateChat(message);
+		}
+		else if (event == "error")
+		{
+			log(item.get("message"));
+		}
 	}
-	
 }

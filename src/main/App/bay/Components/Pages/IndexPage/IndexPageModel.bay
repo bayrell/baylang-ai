@@ -186,14 +186,7 @@ class IndexPageModel extends BasePageModel
 		Collection items = result.data.get("items");
 		for (int i=0; i<items.count(); i++)
 		{
-			Dict item = items.get(i);
-			ChatHistory history = new ChatHistory
-			{
-				"id": item.get("id"),
-				"title": item.get("name"),
-			};
-			history.addMessages(item.get("messages"));
-			this.chats.append(history);
+			this.createChat(items.get(i));
 		}
 	}
 	
@@ -258,27 +251,41 @@ class IndexPageModel extends BasePageModel
 			throw new DialogModelException(result.message);
 		}
 		
+		/* Create chat */
 		Dict chat = result.data.get("chat");
-		Dict message = result.data.get("message");
-		
-		/* Create new chat */
-		ChatHistory new_chat_item = new ChatHistory
+		this.createChat(chat);
+	}
+	
+	
+	/**
+	 * Create chat
+	 */
+	void createChat(Dict item)
+	{
+		ChatHistory history = new ChatHistory
 		{
-			"id": chat.get("id"),
-			"title": chat.get("name"),
-			"message":
-			[
-				new ChatMessage
-				{
-					"kind": "human",
-					"text": message.get("message"),
-				},
-			],
+			"id": item.get("id"),
+			"title": item.get("name"),
 		};
-		
-		/* Add created chat */
-		this.select(new_chat_item);
-		this.chats.prepend(new_chat_item);
+		history.addMessages(item.get("messages"));
+		this.chats.append(history);
+	}
+	
+	
+	/**
+	 * Update chat from LLM
+	 */
+	void updateChat(Dict item)
+	{
+		string chat_id = item.get("chat_id");
+		for (int i=0; i<this.chats.count(); i++)
+		{
+			ChatHistory history = this.chats.get(i);
+			if (history.id == chat_id)
+			{
+				history.updateMessage(item);
+			}
+		}
 	}
 	
 	
@@ -290,6 +297,12 @@ class IndexPageModel extends BasePageModel
 		ChatHistory history = this.getSelectedItem();
 		if (not history) return;
 		
+		/* Add history */
+		history.addMessage({
+			"sender": "human",
+			"text": message,
+		});
+		
 		/* Send api request */
 		ApiResult result = await this.layout.callApi({
 			"api_name": "chat/app.chat",
@@ -299,12 +312,6 @@ class IndexPageModel extends BasePageModel
 				"chat_id": history.id
 				"text": message
 			}
-		});
-		
-		/* Add history */
-		history.addMessage({
-			"kind": "human",
-			"text": message,
 		});
 	}
 	
