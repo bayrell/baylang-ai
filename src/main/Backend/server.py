@@ -1,11 +1,16 @@
-import asyncio, time
+import asyncio, time, os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
-from langchain_ollama import ChatOllama
-from service import add_message, create_chat, delete_chat, \
-    get_chat_by_id, get_chat_items_by_query, get_prompt, json_encode, \
-    get_chat_items, get_message_by_id, update_chat_message
 
+# Set folder path
+os.environ["HF_HOME"] = "/app/var/cache"
+os.chdir("/app")
+
+# Import library
+from ai import *
+from service import *
+
+# Create APP
 app = FastAPI()
 
 # Разрешаем CORS для фронта
@@ -21,12 +26,7 @@ app.add_middleware(
 connected_clients = set()
 
 # Подключение к LLM
-llm = ChatOllama(
-    base_url="http://database_ollama:11434",
-    model="qwen2.5-coder:1.5b",
-    #model="qwen2.5-coder:3b",
-    temperature=0.5,
-)
+llm = get_llm()
 
 async def send_broadcast_message(message):
     
@@ -51,19 +51,15 @@ async def send_message_llm(chat_id, message_id, message):
     Генерация ответа LLM и рассылка всем клиентам по WebSocket.
     """
     
+    print("")
     print("Receive message " + message)
     
     # Wait 100ms
     await asyncio.sleep(0.1)
     
-    # Получить промт
-    system_message = "Ты консультант для программистов. Отвечай на русском языке"
-    prompt = await get_prompt(chat_id, system_message, message)
-    print(prompt)
-    
     try:
         answer = ""
-        for chunk in llm.stream(prompt, stream=True):
+        async for chunk in send_question(llm, chat_id, message):
             
             # Get text chunk
             text_chunk = chunk.content
@@ -88,6 +84,7 @@ async def send_message_llm(chat_id, message_id, message):
             await update_chat_message(message_id, answer)
             
     except Exception as e:
+        print(e)
         await send_broadcast_message({
             "event": "error",
             "message": str(e)

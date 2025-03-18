@@ -1,6 +1,3 @@
-[submodule "docs"]
-	path = docs
-	url = https://github.com/bayrell/baylang-docs
 [submodule "src/plugins/Runtime"]
 	path = src/plugins/Runtime
 	url = https://github.com/bayrell/Runtime
@@ -13,3 +10,6 @@
 [submodule "src/plugins/Runtime.Widget"]
 	path = src/plugins/Runtime.Widget
 	url = https://github.com/bayrell/Runtime.Widget
+[submodule "src/docs"]
+	path = src/docs
+	url = https://github.com/bayrell/baylang-docs

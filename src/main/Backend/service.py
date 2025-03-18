@@ -204,28 +204,3 @@ async def get_message_by_id(id):
     """
     return await execute_fetch("select * from messages where id=?", (id,), True)
 
-
-async def get_prompt(chat_id, system_message, question):
-
-    """
-    Получить промт на основе вопроса и истории
-    """
-    
-    # Получаем все сообщения чата
-    query = f"""
-        SELECT * FROM messages
-        WHERE chat_id = ?
-        ORDER BY id, gmtime_created;
-    """
-    messages = await execute_fetch(query, [chat_id])
-    messages = messages[-10:]
-    
-    # Создаем промт
-    prompt = []
-    if system_message:
-        prompt += [("system", system_message)]
-    for item in messages:
-        if item["text"] and item["sender"] == "human":
-            prompt += [(item["sender"], item["text"])]
-    
-    return prompt

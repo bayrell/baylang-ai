@@ -3,6 +3,7 @@ src/env.php
 src/main/App/es6
 src/main/App/php
 src/public/assets
+src/var
 !src/public/assets/vue.runtime.global.js
 !src/public/assets/vue.runtime.global.prod.js
 test
