@@ -33,12 +33,12 @@ vector_store = FAISS.load_local(
 # Connect to LLM
 llm_answer = ChatOllama(
     base_url="http://database_ollama:11434",
-    model="qwen2.5:1.5b",
+    model="qwen2.5:3b",
     temperature=0.5,
 )
 llm_question = ChatOllama(
     base_url="http://database_ollama:11434",
-    model="qwen2.5:1.5b",
+    model="qwen2.5:3b",
     temperature=0.1,
 )
 
@@ -122,7 +122,7 @@ async def get_prompt(chat_id, question):
     system_message = f"Ты консультант для программистов. Отвечай на русском языке в деловом стиле. Используй следующую информацию для ответа:\n\n{context}"
     prompt = [
         ("system", system_message),
-        ("human", " ".join([question, "Отвечай на русском языке"]))
+        ("human", " ".join([new_question, "Отвечай на русском языке"]))
     ]
     
     # Добавляем историю сообщений
