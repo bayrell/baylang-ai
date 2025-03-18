@@ -43,15 +43,16 @@ llm_question = ChatOllama(
 )
 
 
-def find_docs(questions):
+def find_docs(questions, k=3):
     
     """
     Find documents by questions
     """
     
-    embeddings = np.array(embeddings_model.embed_documents(questions))
-    mean_embedding = embeddings.mean(axis=0).tolist()
-    docs = vector_store.similarity_search_by_vector(mean_embedding, k=3)
+    embeddings = np.array(embeddings_model.embed_documents(questions)).astype(np.float32)
+    mean_embedding = embeddings.mean(axis=0)
+    faiss.normalize_L2(mean_embedding.reshape(1, -1))
+    docs = vector_store.similarity_search_by_vector(mean_embedding.tolist(), k)
     return embeddings, docs
 
 

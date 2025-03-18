@@ -58,10 +58,14 @@ class MarkdownParser:
     def parse(self, text):
         self.lines = text.split("\n")
         
+        block_code = False
         current_lines = []
         for line in self.lines:
             
-            if len(line) > 0 and line[0] == "#":
+            if line[0:3] == "```":
+                block_code = not block_code
+            
+            if len(line) > 0 and line[0] == "#" and not block_code:
                 self.process_header(line, current_lines)
                 current_lines = []
             
@@ -69,15 +73,6 @@ class MarkdownParser:
         
         self.add_block(current_lines)
 
-
-# Set folder path
-os.environ["HF_HOME"] = "/app/var/cache"
-os.chdir("/app")
-
-# Set constant
-DATABASE_PATH = "/app/var/database"
-DOCS_PATH = "/app/docs"
-EMBEDDINGS_MODEL_NAME="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 
 def get_embedding():
@@ -189,11 +184,22 @@ def save_index(vector_store):
         f.write(EMBEDDINGS_MODEL_NAME)
     
 
-# Read documents
-documents = get_documents()
-blocks = parse_documents(documents)
-
-# Create index
-_, vector_store = get_embedding()
-create_index(vector_store, blocks)
-save_index(vector_store)
+if __name__ == "__main__":
+    
+    # Set folder path
+    os.environ["HF_HOME"] = "/app/var/cache"
+    os.chdir("/app")
+    
+    # Set constant
+    DATABASE_PATH = "/app/var/database"
+    DOCS_PATH = "/app/docs"
+    EMBEDDINGS_MODEL_NAME="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    
+    # Read documents
+    documents = get_documents()
+    blocks = parse_documents(documents)
+    
+    # Create index
+    _, vector_store = get_embedding()
+    create_index(vector_store, blocks)
+    save_index(vector_store)
