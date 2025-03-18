@@ -25,8 +25,6 @@ app.add_middleware(
 # Подключенные клиенты
 connected_clients = set()
 
-# Подключение к LLM
-llm = get_llm()
 
 async def send_broadcast_message(message):
     
@@ -52,14 +50,14 @@ async def send_message_llm(chat_id, message_id, message):
     """
     
     print("")
-    print("Receive message " + message)
+    print("Receive message: " + message)
     
     # Wait 100ms
     await asyncio.sleep(0.1)
     
     try:
         answer = ""
-        async for chunk in send_question(llm, chat_id, message):
+        async for chunk in send_question(chat_id, message):
             
             # Get text chunk
             text_chunk = chunk.content

@@ -43,10 +43,12 @@ class MarkdownParser:
         return i
     
     def save_level(self, lines):
-        if self.current_level == 1:
-            self.levels[self.current_level] = "\n".join(lines[0:5])
+        if len(lines) == 0:
+            self.levels[self.current_level] = ""
+        elif self.current_level == 1:
+            self.levels[self.current_level] = lines[0]
         else:
-            self.levels[self.current_level] = "\n".join(lines[0:3])
+            self.levels[self.current_level] = lines[0]
     
     def process_header(self, current_line, lines):
         self.add_block(lines)

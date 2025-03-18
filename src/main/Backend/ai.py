@@ -30,21 +30,17 @@ vector_store = FAISS.load_local(
     allow_dangerous_deserialization=True
 )
 
-
-def get_llm():
-    
-    """
-    Connect to LLM
-    """
-    
-    llm = ChatOllama(
-        base_url="http://database_ollama:11434",
-        #model="deepseek-r1:1.5b",
-        model="qwen2.5:3b",
-        temperature=0.5,
-    )
-    
-    return llm
+# Connect to LLM
+llm_answer = ChatOllama(
+    base_url="http://database_ollama:11434",
+    model="qwen2.5:1.5b",
+    temperature=0.5,
+)
+llm_question = ChatOllama(
+    base_url="http://database_ollama:11434",
+    model="qwen2.5:1.5b",
+    temperature=0.1,
+)
 
 
 def find_docs(questions):
@@ -68,8 +64,30 @@ def print_docs(docs):
         print("-" * 50)
 
 
-async def get_prompt(chat_id, question):
+def get_llm_question(question, history):
+    
+    prompt = [
+        ("system",
+            "Ты помощник, который делает вопросы самодостаточными, добавляя контекст из истории диалога"
+        ),
+        ("human",
+            f"История диалога:\n\n" + "\n".join(history) + "\n\n" +
+            f"Переформулируй вопрос, на основе истории диалога, " +
+                f"чтобы он был понятен без контекста: {question}. Вопрос:"
+        ),
+    ]
+    
+    print(str(prompt) + "\n")
+    
+    answer = llm_question.invoke(prompt).content
+    
+    print("Новый вопрос: " + answer + "\n")
+    
+    return answer
 
+
+async def get_prompt(chat_id, question):
+    
     """
     Получить промт на основе вопроса и истории
     """
@@ -89,14 +107,15 @@ async def get_prompt(chat_id, question):
         if item["sender"] == "human":
             questions.append(item["text"])
     
-    # Ищем релевантные документы
-    _, docs = find_docs(questions)
-    context = "\n\n".join([doc.page_content for doc in docs])
+    # Переформулировка вопроса
+    new_question = question
+    if len(questions) > 1:
+        new_question = get_llm_question(question, questions)
     
-    print("Context:")
-    for doc in docs:
-        print("")
-        print(doc.page_content)
+    # Ищем релевантные документы
+    _, docs = find_docs([new_question])
+    context = "\n\n".join([doc.page_content for doc in docs])
+    print("Context:\n" + context)
     
     # Создаем промт
     system_message = f"Ты консультант для программистов. Отвечай на русском языке в деловом стиле. Используй следующую информацию для ответа:\n\n{context}"
@@ -112,19 +131,19 @@ async def get_prompt(chat_id, question):
     #        prompt += [(item["sender"], item["text"])]
     
     # Добавляем чтобы ответил на русском языке
-    item = prompt[-1]
-    prompt[-1] = (item[0], " ".join([item[1], "Отвечай на русском языке"]))
+    #item = prompt[-1]
+    #prompt[-1] = (item[0], " ".join([item[1], "Отвечай на русском языке"]))
     
     return prompt
 
 
-async def send_question(llm, chat_id, question):
+async def send_question(chat_id, question):
     
     # Получить промт
     prompt = await get_prompt(chat_id, question)
     print(prompt)
     
     # Отправим вопрос LLM
-    for chunk in llm.stream(prompt, stream=True):
+    for chunk in llm_answer.stream(prompt, stream=True):
         yield chunk
     
