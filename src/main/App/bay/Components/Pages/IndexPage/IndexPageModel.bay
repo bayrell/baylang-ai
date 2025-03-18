@@ -323,6 +323,17 @@ class IndexPageModel extends BasePageModel
 	{
 		ChatHistory selected_item = message.widget.data.get("selected_item");
 		selected_item.title = message.value;
+		
+		/* Send api request */
+		ApiResult result = await this.layout.callApi({
+			"api_name": "chat/app.chat",
+			"method_name": "rename",
+			"data":
+			{
+				"chat_id": selected_item.id
+				"title": message.value
+			}
+		});
 	}
 	
 	

@@ -179,6 +179,27 @@ async def action_send(request: Request):
     }
 
 
+@app.post("/app.chat/rename")
+async def action_create(request: Request):
+    
+    # Get form data
+    post_data = await request.form()
+    post_data = dict(post_data)
+    chat_id = post_data.get("data[chat_id]")
+    chat_title = post_data.get("data[title]")
+    
+    # Rename title
+    await execute(
+        "UPDATE chats SET name=? WHERE id=?",
+        (chat_title, chat_id)
+    )
+    
+    return {
+        "code": 1,
+        "message": "Ok",
+    }
+    
+
 @app.post("/app.chat/delete")
 async def action_delete(request: Request):
     

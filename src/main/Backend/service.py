@@ -173,7 +173,7 @@ async def get_chat_items_by_query(query, params=None):
 
 
 async def get_chat_items():
-    return await get_chat_items_by_query("select * from chats")
+    return await get_chat_items_by_query("select * from chats order by id desc")
 
 
 async def add_message(chat_id: int, sender: str, text: str):

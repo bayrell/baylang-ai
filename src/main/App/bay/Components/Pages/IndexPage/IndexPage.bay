@@ -117,9 +117,10 @@
 					}
 				}}
 				@event:contextmenu={{
-					void (var e)
+					void (var e) use (history)
 					{
 						e.preventDefault();
+						this.model.select(history);
 						this.model.context_menu.show(e.pageX, e.pageY);
 					}
 				}}
@@ -179,9 +180,9 @@
 	</div>
 </template>
 
+
 <script>
 
-var ws;
 var message = "";
 
 
