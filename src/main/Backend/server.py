@@ -1,4 +1,6 @@
 import asyncio, time, os
+from ai import AI
+from service import *
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,12 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 os.environ["HF_HOME"] = "/app/var/cache"
 os.chdir("/app")
 
-# Import library
-from ai import *
-from service import *
-
 # Create APP
 app = FastAPI()
+
+# Init AI
+ai = AI()
+ai.load_store()
+ai.init_llm()
 
 # Разрешаем CORS для фронта
 app.add_middleware(
@@ -57,7 +60,7 @@ async def send_message_llm(chat_id, message_id, message):
     
     try:
         answer = ""
-        async for chunk in send_question(chat_id, message):
+        async for chunk in ai.send_question(chat_id, message, debug=True):
             
             # Get text chunk
             text_chunk = chunk.content

@@ -1,4 +1,5 @@
 .cache
+__pycache__
 src/env.php
 src/main/App/es6
 src/main/App/php
