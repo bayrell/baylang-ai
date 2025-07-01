@@ -8,6 +8,7 @@ langchain-core==0.3.43
 langchain-huggingface==0.1.2
 langchain-ollama==0.2.3
 langchain-text-splitters==0.3.6
+langgraph==0.3.21
 langsmith==0.3.13
 ollama==0.4.7
 python-multipart==0.0.20
