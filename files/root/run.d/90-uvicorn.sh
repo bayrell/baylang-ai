@@ -10,7 +10,7 @@ function run_uvicorn()
 	
 	# Run app
 	cd /app/main/Backend
-	sudo -u www-data /opt/conda/bin/uvicorn server:app --reload
+	sudo -u www-data /opt/conda/bin/uvicorn server:web --reload
 }
 
 function start_uvicorn()

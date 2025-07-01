@@ -45,7 +45,7 @@ class WebSocket extends BaseObject
 	void connect()
 	{
 		#ifcode JAVASCRIPT then
-		this.ws = new WebSocket("ws://" + document.location.host + "/api/chat/socket");
+		this.ws = new WebSocket("ws://" + document.location.host + "/api/chat/app.chat/socket");
 		#endif
 		
 		this.ws.binaryType = 'arraybuffer';
