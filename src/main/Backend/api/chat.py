@@ -20,8 +20,19 @@ class ChatProvider:
             "INSERT INTO chats (name, gmtime_created, gmtime_updated) VALUES (?, ?, ?)",
             (name, gmtime_now, gmtime_now)
         )
-
-
+    
+    async def rename(self, id, chat_title):
+        
+        """
+        Фунция переименовывает чат
+        """
+        
+        await self.database.execute(
+            "UPDATE chats SET name=? WHERE id=?",
+            (chat_title, id)
+        )
+    
+    
     async def delete(self, id):
         """
         Функция удалить чат по id
@@ -38,6 +49,7 @@ class ChatProvider:
     
     
     async def get_items_by_query(self, query, params=None):
+        
         """
         Получить список всех чатов
         """
@@ -75,7 +87,35 @@ class ChatProvider:
     
     
     async def get_items(self):
+        
+        """
+        Получить список чатов
+        """
+        
         return await self.get_items_by_query("select * from chats order by id desc")
+    
+    
+    async def get_last_messages(self, chat_id, limit=-1):
+        
+        """
+        Получить последние сообщения чата
+        """
+        
+        query = f"""
+            SELECT * FROM messages
+            WHERE chat_id = ?
+            ORDER BY id desc
+        """
+        args = [chat_id]
+        
+        if limit >= 0:
+            query += "LIMIT ?"
+            args.append(limit)
+        
+        history = await self.database.fetchall(query, args)
+        history = list(map(dict, history))
+        history.reverse()
+        return history
     
     
     async def add_message(self, chat_id: int, sender: str, text: str):
@@ -166,8 +206,8 @@ class ChatApi:
         )
         
         # Send message to LLM
-        #ai = self.app.get("ai")
-        #asyncio.create_task(ai.send_message(chat_id, answer_message_id, message))
+        ai = self.app.get("ai")
+        asyncio.create_task(ai.send_message(chat_id, chat_message_id, answer_message_id, message))
         
         return JSONResponse({
             "code": 1,
@@ -187,7 +227,7 @@ class ChatApi:
         message = post_data.get("data[text]")
         
         # Add message
-        await self.chat_provider.add_message(chat_id, "human", message)
+        chat_message_id = await self.chat_provider.add_message(chat_id, "human", message)
         
         # Add answer
         answer_message_id = await self.chat_provider.add_message(chat_id, "assistant", "")
@@ -195,7 +235,7 @@ class ChatApi:
         
         # Send message to LLM
         ai = self.app.get("ai")
-        asyncio.create_task(ai.send_message(chat_id, answer_message_id, message))
+        asyncio.create_task(ai.send_message(chat_id, chat_message_id, answer_message_id, message))
         
         return JSONResponse({
             "code": 1,
@@ -216,10 +256,7 @@ class ChatApi:
         chat_title = post_data.get("data[title]")
         
         # Rename title
-        await execute(
-            "UPDATE chats SET name=? WHERE id=?",
-            (chat_title, chat_id)
-        )
+        await self.chat_provider.rename(chat_id, chat_title)
         
         return JSONResponse({
             "code": 1,

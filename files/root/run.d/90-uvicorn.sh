@@ -33,7 +33,7 @@ function stop_uvicorn()
 {
 	echo "Stop uvicorn"
 	stop_app "multiprocessing"
-	stop_app "uvicorn server:app"
+	stop_app "uvicorn server:web"
 }
 
 case "$1" in
