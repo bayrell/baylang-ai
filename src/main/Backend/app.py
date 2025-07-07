@@ -2,8 +2,8 @@ import os
 from uvicorn.logging import logging
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
-from starlette.routing import Route
-from ai import AI, Tools
+from starlette.routing import Route, Mount
+from ai import AI, Tools, McpServer
 from database import Database
 from client import Client
 from api.chat import ChatApi, ChatProvider
@@ -40,10 +40,17 @@ class Container:
         
         return instance
     
-    def start(self):
+    def init(self):
         for name, item in self.services.items():
             if item["singleton"]:
                 self.get(name)
+    
+    async def start(self):
+        for name, item in self.services.items():
+            if item["singleton"]:
+                provider = self.get(name)
+                if hasattr(provider, "start"):
+                    await provider.start()
     
     def print(self, message, end="\n", flush=True):
         print(message, end=end, flush=flush)
@@ -94,13 +101,38 @@ class App(Container):
         self.singleton("chat_api", lambda: ChatApi(self))
         self.singleton("chat_provider", lambda: ChatProvider(self))
         self.singleton("client_provider", lambda: Client(self))
+        self.singleton("mcp", lambda: McpServer(self))
         self.singleton("tools", lambda: Tools(self))
         self.singleton("web", lambda: Web(self))
         
+        # Init providers
+        self.init()
+    
+    
+    def print_routes(self):
+        
+        """
+        Print starlette routes
+        """
+        
+        def list_routes(routes, prefix=""):
+            urls = []
+            for route in routes:
+                if isinstance(route, Route):
+                    urls.append(f"{prefix}{route.path}")
+                elif isinstance(route, Mount):
+                    urls.extend(list_routes(route.routes, prefix + route.path))
+            return urls
+        
+        for url in list_routes(self.get("starlette").routes):
+            print(url)
+        
+    
+    async def run(self):
+        
         # Start providers
-        self.start()
-       
-    def run(self):
+        await self.start()
+        
         db = self.get("database")
         logger = self.get("logger")
         try:
