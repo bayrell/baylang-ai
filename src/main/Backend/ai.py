@@ -217,14 +217,13 @@ class Tools:
     def __init__(self, app):
         self.app = app
         self.items = [
-            add_tool,
-            multiply_tool,
-            magic_function,
+            tool(add_tool),
+            tool(multiply_tool),
+            tool(magic_function),
         ]
     
     def bind(self, llm):
-        items = list(map(tool, self.items))
-        return llm.bind_tools(items)
+        return llm.bind_tools(self.items)
     
     def find(self, action):
         for tool in self.items:
@@ -245,7 +244,7 @@ class McpServer:
     def update_tools(self):
         tools = self.app.get("tools")
         for item in tools.items:
-            self.mcp.add_tool(item)
+            self.mcp.add_tool(item.func)
     
     async def start(self):
         self.update_tools()
