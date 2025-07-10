@@ -29,7 +29,7 @@ class Client:
             try:
                 await websocket.send_text(self.database.json_encode(message))
             except WebSocketDisconnect:
-                disconnected_clients.add(websocket)
+                self.disconnected_clients.add(websocket)
         
         for websocket in disconnected_clients:
             self.connected_clients.remove(websocket)

@@ -104,8 +104,8 @@ class Agent:
         self.app.log(prompt)
         
         # Отправим вопрос LLM
-        response = self.llm.stream(prompt, stream=True)
-        for chunk in response:
+        response = self.llm.astream(prompt, stream=True)
+        async for chunk in response:
             await self.send_callback("chunk", {
                 "question": question,
                 "chunk": chunk,
