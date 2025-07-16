@@ -324,7 +324,7 @@ class AI:
         
         # Рассылаем всем клиентам
         await self.client_provider.send_broadcast_message({
-            "event": "send_message",
+            "event": "update_chat",
             "message":
             {
                 "id": answer_message_id,
@@ -343,6 +343,16 @@ class AI:
         
         self.app.log("")
         self.app.log("Receive message: " + message)
+        
+        # Start chat
+        await self.client_provider.send_broadcast_message({
+            "event": "start_chat",
+            "message":
+            {
+                "id": answer_message_id,
+                "chat_id": chat_id,
+            }
+        })
         
         # Wait 100ms
         await asyncio.sleep(0.1)
@@ -374,11 +384,26 @@ class AI:
             
             # Отправить запрос в LLM
             await self.agent.send(question)
+            
+            # Send end
             self.app.log("Ok")
+            await self.client_provider.send_broadcast_message({
+                "event": "end_chat",
+                "message":
+                {
+                    "id": answer_message_id,
+                    "chat_id": chat_id,
+                }
+            })
             
         except Exception as e:
             self.app.exception(e)
             await self.client_provider.send_broadcast_message({
-                "event": "error",
-                "message": str(e)
+                "event": "error_chat",
+                "message":
+                {
+                    "id": answer_message_id,
+                    "chat_id": chat_id,
+                    "error": str(e),
+                }
             })

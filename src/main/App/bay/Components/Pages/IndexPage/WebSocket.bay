@@ -91,7 +91,7 @@ class WebSocket extends BaseObject
 	{
 		Dict item = rtl::json_decode(message.data);
 		string event = item.get("event");
-		if (event == "send_message")
+		if (event == "update_chat")
 		{
 			Dict message = item.get("message");
 			this.model.updateChat(message);
