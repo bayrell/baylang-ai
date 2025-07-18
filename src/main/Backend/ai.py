@@ -293,6 +293,17 @@ class AI:
         answer_message_id = question.data["answer_message_id"]
         chat_id = question.data["chat_id"]
         
+        if kind == "start":
+            await self.client_provider.send_broadcast_message({
+                "event": "start_chat",
+                "message":
+                {
+                    "id": answer_message_id,
+                    "chat_id": chat_id,
+                }
+            })
+            return
+        
         if kind == "message":
             
             force_update = True
