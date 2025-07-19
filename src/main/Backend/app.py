@@ -6,8 +6,10 @@ from starlette.routing import Route, Mount
 from ai import AI, Tools, McpServer
 from database import Database
 from client import Client
+from helper import Helper
 from api.chat import ChatApi, ChatProvider
 
+logging.getLogger("mysql.connector").setLevel(logging.WARNING)
 
 class Container:
     def __init__(self):
@@ -92,7 +94,14 @@ class App(Container):
         self.singleton("ai", register_ai)
         
         # Register database
-        self.singleton("database", lambda: Database("/data/db/baylang.db"))
+        def create_database():
+            database = Database()
+            database.host = os.getenv("MYSQL_HOST")
+            database.user = os.getenv("MYSQL_USERNAME")
+            database.password = os.getenv("MYSQL_PASSWORD")
+            database.database = os.getenv("MYSQL_DATABASE")
+            return database
+        self.singleton("database", create_database)
         
         # Register logger
         self.singleton("logger", lambda: logging.getLogger("uvicorn"))
@@ -101,6 +110,7 @@ class App(Container):
         self.singleton("chat_api", lambda: ChatApi(self))
         self.singleton("chat_provider", lambda: ChatProvider(self))
         self.singleton("client_provider", lambda: Client(self))
+        self.singleton("helper", lambda: Helper())
         self.singleton("mcp", lambda: McpServer(self))
         self.singleton("tools", lambda: Tools(self))
         self.singleton("web", lambda: Web(self))
@@ -132,11 +142,3 @@ class App(Container):
         
         # Start providers
         await self.start()
-        
-        db = self.get("database")
-        logger = self.get("logger")
-        try:
-            db.connect()
-            logger.info("Database connected")
-        except Exception as e:
-            logger.exception(f"Fatal error: {str(e)}")

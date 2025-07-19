@@ -1,101 +1,98 @@
-import asyncio, json, sqlite3, time
+import asyncio, threading
+import mysql.connector
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 
-executor = ThreadPoolExecutor(max_workers=1)
-
-
-class JSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
-
+executor = ThreadPoolExecutor()
 
 class Database:
     
-    def __init__(self, db_path):
-        self.db_path = db_path
-    
-    def json_encode(self, obj, indent=2):
-        return json.dumps(obj, indent=indent, cls=JSONEncoder, ensure_ascii=False)
-    
-    def get_current_datetime(self):
-        """
-        Получить дату по UTC
-        """
-        utc_now = datetime.now(timezone.utc)
-        formatted_time = utc_now.strftime("%Y-%m-%d %H:%M:%S")
-        return formatted_time
+    def __init__(self):
+        self.host = ""
+        self.user = ""
+        self.password = ""
+        self.database = ""
+        self.connection = threading.local()
     
     def connect(self):
-        pass
+        connection = mysql.connector.connect(
+            host=self.host,
+            user=self.user,
+            password=self.password,
+            database=self.database
+        )
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SET NAMES utf8mb4")
+            cursor.execute("SET CHARACTER SET utf8mb4")
+            connection.commit()
+        finally:
+            cursor.close()
+        self.connection.value = connection
+        return connection
+    
+    def get_connection_value(self):
+        return self.connection.value if hasattr(self.connection, "value") else None
+    
+    def reconnect_if_needed(self):
+        connection = self.get_connection_value()
+        if not connection or not connection.is_connected():
+            self.connect()
     
     def get_connection(self):
-        connection = sqlite3.connect(self.db_path)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA journal_mode = WAL;")
-        return connection
+        self.reconnect_if_needed()
+        return self.get_connection_value()
     
     def sync_execute(self, query, params=None):
         connection = self.get_connection()
         cursor = connection.cursor()
         try:
-            if params == None:
-                params = []
             cursor.execute(query, params)
             connection.commit()
         finally:
-            connection.close()
+            cursor.close()
     
     def sync_executemany(self, query, params=None):
         connection = self.get_connection()
         cursor = connection.cursor()
         try:
-            if params == None:
-                params = []
             cursor.executemany(query, params)
             connection.commit()
         finally:
-            connection.close()
+            cursor.close()
     
     def sync_execute_insert(self, query, params=None):
         connection = self.get_connection()
         cursor = connection.cursor()
+        result = None
         try:
-            if params == None:
-                params = []
             cursor.execute(query, params)
             connection.commit()
-            return cursor.lastrowid
+            result = cursor.lastrowid
         finally:
-            connection.close()
+            cursor.close()
+        return result
     
     def sync_execute_fetch(self, query, params=None):
         connection = self.get_connection()
-        cursor = connection.cursor()
+        cursor = connection.cursor(dictionary=True)
+        result = None
         try:
-            if params == None:
-                params = []
             cursor.execute(query, params)
-            return cursor.fetchone()
+            result = cursor.fetchone()
         finally:
-            connection.close()
+            cursor.close()
+        return result
     
     def sync_execute_fetchall(self, query, params=None):
         connection = self.get_connection()
-        cursor = connection.cursor()
+        cursor = connection.cursor(dictionary=True)
+        result = None
         try:
-            if params == None:
-                params = []
             cursor.execute(query, params)
-            return cursor.fetchall()
+            result = cursor.fetchall()
         finally:
-            connection.close()
+            cursor.close()
+        return result
     
     async def execute(self, sql, params=None):
         loop = asyncio.get_running_loop()

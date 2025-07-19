@@ -1,5 +1,4 @@
 import asyncio, time
-from starlette.responses import JSONResponse
 from starlette.requests import Request
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
@@ -9,6 +8,7 @@ class ChatProvider:
 	def __init__(self, app):
 		self.app = app
 		self.database = app.get("database")
+		self.helper = app.get("helper")
 	
 	
 	async def create(self, name: str, chat_id=None):
@@ -17,16 +17,16 @@ class ChatProvider:
 		Функция для создания чата
 		"""
 		
-		gmtime_now = self.database.get_current_datetime()
+		gmtime_now = self.helper.get_current_datetime()
 		
 		if chat_id is None:
 			chat_id = await self.database.insert(
-				"INSERT INTO chats (name, gmtime_created, gmtime_updated) VALUES (?, ?, ?)",
+				"INSERT INTO chats (name, gmtime_created, gmtime_updated) VALUES (%s, %s, %s)",
 				(name, gmtime_now, gmtime_now)
 			)
 		else:
 			await self.database.insert(
-				"INSERT INTO chats (id, name, gmtime_created, gmtime_updated) VALUES (?, ?, ?, ?)",
+				"INSERT INTO chats (id, name, gmtime_created, gmtime_updated) VALUES (%s, %s, %s, %s)",
 				(chat_id, name, gmtime_now, gmtime_now)
 			)
 		
@@ -40,7 +40,7 @@ class ChatProvider:
 		"""
 		
 		await self.database.execute(
-			"UPDATE chats SET name=? WHERE id=?",
+			"UPDATE chats SET name=%s WHERE id=%s",
 			(chat_title, id)
 		)
 	
@@ -49,15 +49,15 @@ class ChatProvider:
 		"""
 		Функция удалить чат по id
 		"""
-		await self.database.execute("delete from messages where chat_id=?", (id,))
-		await self.database.execute("delete from chats where id=?", (id,))
+		await self.database.execute("delete from messages where chat_id=%s", (id,))
+		await self.database.execute("delete from chats where id=%s", (id,))
 	
 	
 	async def get_by_id(self, id):
 		"""
 		Получить чат по id
 		"""
-		return await self.database.fetch("select * from chats where id=?", (id,))
+		return await self.database.fetch("select * from chats where id=%s", (id,))
 	
 	
 	async def get_items_by_query(self, query, params=None):
@@ -84,7 +84,7 @@ class ChatProvider:
 		# Получаем все сообщения для этих чатов
 		query_messages = f"""
 			SELECT * FROM messages
-			WHERE chat_id IN ({','.join(['?'] * len(items_id))})
+			WHERE chat_id IN ({','.join(['%s'] * len(items_id))})
 			ORDER BY id, gmtime_created;
 		"""
 		messages = await self.database.fetchall(query_messages, items_id)
@@ -115,13 +115,13 @@ class ChatProvider:
 		
 		query = f"""
 			SELECT * FROM messages
-			WHERE chat_id = ?
+			WHERE chat_id = %s
 			ORDER BY id desc
 		"""
 		args = [chat_id]
 		
 		if limit >= 0:
-			query += "LIMIT ?"
+			query += "LIMIT %s"
 			args.append(limit)
 		
 		history = await self.database.fetchall(query, args)
@@ -134,9 +134,9 @@ class ChatProvider:
 		"""
 		Функция для добавления сообщения
 		"""
-		gmtime_now = self.database.get_current_datetime()
+		gmtime_now = self.helper.get_current_datetime()
 		return await self.database.insert(
-			"INSERT INTO messages (chat_id, sender, text, gmtime_created, gmtime_updated) VALUES (?, ?, ?, ?, ?)",
+			"INSERT INTO messages (chat_id, sender, text, gmtime_created, gmtime_updated) VALUES (%s, %s, %s, %s, %s)",
 			(chat_id, sender, text, gmtime_now, gmtime_now)
 		)
 
@@ -145,9 +145,9 @@ class ChatProvider:
 		"""
 		Функция обновления сообщения
 		"""
-		gmtime_now = self.database.get_current_datetime()
+		gmtime_now = self.helper.get_current_datetime()
 		return await self.database.execute(
-			"UPDATE messages SET text=?, gmtime_updated=? WHERE id=?",
+			"UPDATE messages SET text=%s, gmtime_updated=%s WHERE id=%s",
 			(text, gmtime_now, message_id)
 		)
 	
@@ -156,7 +156,7 @@ class ChatProvider:
 		"""
 		Получить чат по id
 		"""
-		item = dict(await self.database.fetch("select * from messages where id=?", (id,)))
+		item = dict(await self.database.fetch("select * from messages where id=%s", (id,)))
 		return item
 	
 
@@ -169,6 +169,7 @@ class ChatApi:
 		self.chat_provider = self.app.get("chat_provider")
 		self.client_provider = self.app.get("client_provider")
 		self.starlette = app.get("starlette")
+		self.helper = app.get("helper")
 		self.starlette.add_route("/app.chat/load", self.load, methods=["POST"])
 		self.starlette.add_route("/app.chat/create", self.create, methods=["POST"])
 		self.starlette.add_route("/app.chat/send", self.send, methods=["POST"])
@@ -181,7 +182,7 @@ class ChatApi:
 		
 		items = await self.chat_provider.get_items()
 		
-		return JSONResponse({
+		return self.helper.json_response({
 			"code": 1,
 			"message": "Ok",
 			"data": {
@@ -226,14 +227,14 @@ class ChatApi:
 		
 		# Get chat
 		chat_items = await self.chat_provider.get_items_by_query(
-			"select * from chats where id=?", [chat_id]
+			"select * from chats where id=%s", [chat_id]
 		)
 		
 		# Send message to LLM
 		ai = self.app.get("ai")
 		asyncio.create_task(ai.send_message(chat_id, chat_message_id, answer_message_id, message))
 		
-		return JSONResponse({
+		return self.helper.json_response({
 			"code": 1,
 			"message": "Ok",
 			"data": {
@@ -255,7 +256,7 @@ class ChatApi:
 		# Check chat_id
 		if chat_id is None or chat_id == "":
 			self.app.log("Error: chat_id is None")
-			return JSONResponse({
+			return self.helper.json_response({
 				"code": -1,
 				"message": "chat_id is None",
 			})
@@ -289,7 +290,7 @@ class ChatApi:
 		ai = self.app.get("ai")
 		asyncio.create_task(ai.send_message(chat_id, chat_message_id, answer_message_id, message))
 		
-		return JSONResponse({
+		return self.helper.json_response({
 			"code": 1,
 			"message": "Ok",
 			"data": {
@@ -310,7 +311,7 @@ class ChatApi:
 		# Rename title
 		await self.chat_provider.rename(chat_id, chat_title)
 		
-		return JSONResponse({
+		return self.helper.json_response({
 			"code": 1,
 			"message": "Ok",
 		})
@@ -327,7 +328,7 @@ class ChatApi:
 		await self.chat_provider.delete(chat_id)
 		
 		# Return result
-		return JSONResponse({
+		return self.helper.json_response({
 			"code": 1,
 			"message": "Ok",
 			"data": {
@@ -347,8 +348,8 @@ class ChatApi:
 		try:
 			
 			# Send Hello
-			database = self.app.get("database")
-			await websocket.send_text(database.json_encode({
+			helper = self.app.get("helper")
+			await websocket.send_text(helper.json_encode({
 				"event": "hello"
 			}))
 			

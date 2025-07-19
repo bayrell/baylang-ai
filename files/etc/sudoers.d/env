@@ -1,0 +1,5 @@
+Defaults  env_keep += "MYSQL_HOST"
+Defaults  env_keep += "MYSQL_USERNAME"
+Defaults  env_keep += "MYSQL_PASSWORD"
+Defaults  env_keep += "MYSQL_DATABASE"
+Defaults  env_keep += "JWT_SECRET_KEY"

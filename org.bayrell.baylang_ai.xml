@@ -5,7 +5,7 @@
 	<version>1.0</version>
 	<maintainer>Ildar &lt;ildar@bayrell.org&gt;</maintainer>
 	<marketplace>https://cloud.bayrell.org/</marketplace>
-	<date>2025-03-09T20:25:07+06:00</date>
+	<date>2025-07-15:12:07+06:00</date>
 	<arch>amd64</arch>
 	<link name="Docker hub">https://hub.docker.com/r/bayrell/baylang_ai</link>
 	<link name="Github">https://github.com/bayrell/baylang_ai</link>
@@ -16,6 +16,10 @@
 				<image>docker.io/bayrell/baylang_ai:1.0</image>
 				<hostname>{{.Service.Name}}.{{.Task.ID}}.local</hostname>
 				<environment>
+					<MYSQL_HOST>_var_mysql_host_</MYSQL_HOST>
+					<MYSQL_USERNAME>_var_mysql_username_</MYSQL_USERNAME>
+					<MYSQL_PASSWORD>_var_mysql_password_</MYSQL_PASSWORD>
+					<MYSQL_DATABASE>_var_mysql_database_</MYSQL_DATABASE>
 				</environment>
 				<volumes>_var_app_name_:/data</volumes>
 			</_var_app_name_>
@@ -25,6 +29,30 @@
     </volumes>
 	</yaml>
 	<variables>
+		<variable>
+			<name>_var_mysql_host_</name>
+			<label>MySQL Host</label>
+			<type>string</type>
+			<default></default>
+		</variable>
+		<variable>
+			<name>_var_mysql_username_</name>
+			<label>MySQL username</label>
+			<type>string</type>
+			<default></default>
+		</variable>
+		<variable>
+			<name>_var_mysql_password_</name>
+			<label>MySQL password</label>
+			<type>string</type>
+			<default></default>
+		</variable>
+		<variable>
+			<name>_var_mysql_database_</name>
+			<label>MySQL database</label>
+			<type>string</type>
+			<default></default>
+		</variable>
 	</variables>
 	<modificators>
 		<li>org.bayrell.modificator.cloud_os</li>
