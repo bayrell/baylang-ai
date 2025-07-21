@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" href="/dist/main.css">
+	</head>
+	<body>
+		<div class="app"></div>
+		<script src="/assets/axios.min.js"></script>
+		<script src="/assets/vue.runtime.global.js"></script>
+		<script src="/dist/main.js"></script>
+		<script>
+			startApp((app, layout) => {
+				app.mount(".app");
+				window.app = app;
+				window.layout = layout;
+			});
+		</script>
+	</body>
+</html>

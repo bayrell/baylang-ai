@@ -1,10 +1,7 @@
 .cache
 __pycache__
 src/env.php
-src/main/App/es6
-src/main/App/php
-src/public/assets
+src/node_modules
+src/public/dist
 src/var
-!src/public/assets/vue.runtime.global.js
-!src/public/assets/vue.runtime.global.prod.js
 test

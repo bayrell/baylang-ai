@@ -9,8 +9,8 @@ function run_uvicorn()
 	export PYTHONDONTWRITEBYTECODE=1
 	
 	# Run app
-	cd /app/main/Backend
-	sudo -u www-data /opt/conda/bin/uvicorn server:web --reload
+	cd /app/main/backend
+	sudo -u www-data /opt/conda/bin/uvicorn server:web --host 0.0.0.0 --port 80 --reload
 }
 
 function start_uvicorn()
