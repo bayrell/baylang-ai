@@ -248,8 +248,8 @@ class ChatApi:
 		# Get form data
 		post_data = await request.form()
 		post_data = dict(post_data)
-		chat_id = post_data.get("data[chat_id]")
-		message = post_data.get("data[text]")
+		chat_id = post_data.get("chat_id")
+		message = post_data.get("message")
 		
 		print("Send " + str(chat_id) + " " + message)
 		

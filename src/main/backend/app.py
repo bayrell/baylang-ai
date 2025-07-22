@@ -11,7 +11,7 @@ from helper import Helper
 from api.chat import ChatApi, ChatProvider
 
 logging.getLogger("mysql.connector").setLevel(logging.WARNING)
-logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+#logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 class Container:
     def __init__(self):

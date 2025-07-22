@@ -1,21 +1,21 @@
 import ChatHistory from "./ChatHistory.js";
 import ChatMessage from "./ChatMessage.js";
-import { markRaw } from "vue";
+import { sendApi } from "@main/lib.js";
 
 class ChatPageModel
 {
-    /**
+	/**
 	 * Constructor
 	 */
 	constructor()
 	{
 		this.chats = [];
 		this.current_chat_id = null;
+		this.is_loading = true;
 		this.image_url = "";
 		this.show_dialog = "";
 		this.show_dialog_id = "";
 		this.loading = true;
-		this.vscode = markRaw(acquireVsCodeApi());
 	}
 	
 	
@@ -147,14 +147,14 @@ class ChatPageModel
 		this.show_dialog_id = chat_id;
 		this.current_chat_id = chat_id;
 	}
-    
-    
-    /**
+	
+	
+	/**
 	 * Delete chat
 	 */
 	async deleteChat(chat_id)
 	{
-        /* Find chat by id */
+		/* Find chat by id */
 		var chat_pos = this.findChat(chat_id);
 		if (chat_pos == -1) return;
 		
@@ -170,29 +170,29 @@ class ChatPageModel
 		{
 			this.selectChat(chat_pos);
 		}
-    }
-    
-    
-    /**
+	}
+	
+	
+	/**
 	 * Rename chat
 	 */
 	async renameChat(chat_id, new_name)
 	{
-        /* Find chat by id */
+		/* Find chat by id */
 		var chat = this.findChatById(chat_id);
 		if (!chat) return;
 		
 		/* Rename title */
 		chat.title = new_name;
-    }
-    
-    
-    /**
+	}
+	
+	
+	/**
 	 * Send message
 	 */
-	sendMessage(chat_id, message)
+	async sendMessage(chat_id, message)
 	{
-        /* Find chat by id */
+		/* Find chat by id */
 		var chat = this.findChatById(chat_id);
 		if (!chat)
 		{
@@ -210,7 +210,34 @@ class ChatPageModel
 		/* Add message to history */
 		chat.addMessage(item);
 		this.selectItem(chat.id);
-    }
+		
+		/* Send api */
+		await sendApi("/api/chat/send", {
+			chat_id: chat.id,
+			message: message,
+		});
+	}
+	
+	
+	/**
+	 * Load
+	 */
+	async load()
+	{
+		var result = await sendApi("/api/chat/load");
+		if (result.isSuccess())
+		{
+			this.is_loading = false;
+			this.chats = [];
+			for (var i=0; i<result.data.items.length; i++)
+			{
+				var item = result.data.items[i];
+				var history = new ChatHistory();
+				history.assign(item);
+				this.chats.push(history);
+			}
+		}
+	}
 }
 
 export default ChatPageModel;

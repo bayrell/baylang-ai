@@ -1,3 +1,4 @@
+import ChatPageModel from "./Chat/ChatPageModel.js";
 import Router from "./Router.js";
 
 class Layout
@@ -5,6 +6,7 @@ class Layout
 	constructor()
 	{
 		this.router = new Router(this);
+		this.chat_page = new ChatPageModel(this);
 	}
 	
 	
