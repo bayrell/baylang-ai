@@ -13,7 +13,8 @@ export default
             type: String
         }
     },
-    methods: {
+    methods:
+    {
         onClick(e)
         {
             e.preventDefault();

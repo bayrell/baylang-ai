@@ -1,6 +1,112 @@
 import ChatHistory from "./ChatHistory.js";
 import ChatMessage from "./ChatMessage.js";
 import { sendApi } from "@main/lib.js";
+import { markRaw } from "vue";
+
+class Socket
+{
+	constructor()
+	{
+		this.model = null;
+		this.ws = null;
+	}
+	
+	
+	/**
+	 * Set model
+	 */
+	setModel(model)
+	{
+		this.model = model;
+	}
+	
+	
+	/**
+	 * Connect
+	 */
+	connect()
+	{
+		this.ws = new WebSocket("/api/chat/socket");
+		this.ws.binaryType = 'arraybuffer';
+		this.ws.onopen = this.onConnect.bind(this);
+		this.ws.onmessage = this.onMessage.bind(this);
+		this.ws.onclose = this.onDisconnect.bind(this);
+		this.ws.onerror = this.onError.bind(this);
+	}
+	
+	
+	/**
+	 * On connect
+	 */
+	onConnect()
+	{
+		console.log("Connected to websocket");
+	}
+	
+	
+	/**
+	 * On disconnect
+	 */
+	onDisconnect()
+	{
+	}
+	
+	
+	/**
+	 * On message
+	 */
+	onMessage(message)
+	{
+		/* JSON decode */
+		var item = null;
+		try
+		{
+			item = JSON.parse(message.data);
+		}
+		catch(e)
+		{
+		}
+		
+		if (!item) return;
+		if (item.event == "update_chat")
+		{
+			var chat_id = item.message.chat_id;
+			var chat = this.model.findChatById(chat_id);
+			if (!chat) return;
+			
+			chat.setTyping(false);
+			chat.updateMessage(item.message);
+		}
+		else if (item.event == "start_chat")
+		{
+			var chat_id = item.message.chat_id;
+			var chat = this.model.findChatById(chat_id);
+			if (!chat) return;
+			
+			chat.setTyping(true);
+		}
+		else if (item.event == "end_chat")
+		{
+			var chat_id = item.message.chat_id;
+			var chat = this.model.findChatById(chat_id);
+			if (!chat) return;
+			
+			chat.setTyping(false);
+		}
+		else
+		{
+			console.log(item);
+		}
+	}
+	
+	
+	/**
+	 * On error
+	 */
+	onError()
+	{
+	}
+}
 
 class ChatPageModel
 {
@@ -10,6 +116,7 @@ class ChatPageModel
 	constructor()
 	{
 		this.chats = [];
+		this.socket = markRaw(new Socket());
 		this.current_chat_id = null;
 		this.is_loading = true;
 		this.image_url = "";
@@ -20,11 +127,12 @@ class ChatPageModel
 	
 	
 	/**
-	 * Bind events
+	 * Init model
 	 */
-	bind()
+	init()
 	{
-		window.addEventListener("message", this.onMessage.bind(this));
+		this.socket.setModel(this);
+		this.socket.connect();
 	}
 	
 	

@@ -1,10 +1,15 @@
-body *{ box-sizing: border-box; }
 :root{
 	--border-color: #e0e1e6;
 	--hover-color: #eee;
+	--selected-background-color: #0077ee;
+	--selected-text-color: #fff;
 	--primary-color: #0077ee;
 	--secondary-color: #5c6370;
 	--danger-color: #e00000;
 	--success-color: #98c379;
 	--gray-color: #6b7280;
+}
+body *{ box-sizing: border-box; }
+body{
+	padding: 0; margin: 0;
 }

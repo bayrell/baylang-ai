@@ -16,6 +16,7 @@ class Layout
 	init()
 	{
 		this.router.init();
+		this.chat_page.init();
 	}
 	
 	
