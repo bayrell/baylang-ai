@@ -305,8 +305,8 @@ class ChatApi:
 		# Get form data
 		post_data = await request.form()
 		post_data = dict(post_data)
-		chat_id = post_data.get("data[chat_id]")
-		chat_title = post_data.get("data[title]")
+		chat_id = post_data.get("chat_id")
+		chat_title = post_data.get("title")
 		
 		# Rename title
 		await self.chat_provider.rename(chat_id, chat_title)
@@ -322,7 +322,7 @@ class ChatApi:
 		# Get form data
 		post_data = await request.form()
 		post_data = dict(post_data)
-		chat_id = post_data.get("data[chat_id]")
+		chat_id = post_data.get("chat_id")
 		
 		# Delete chat
 		await self.chat_provider.delete(chat_id)

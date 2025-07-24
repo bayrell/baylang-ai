@@ -278,6 +278,11 @@ class ChatPageModel
 		{
 			this.selectChat(chat_pos);
 		}
+		
+		/* Send api */
+		await sendApi("/api/chat/delete", {
+			chat_id: chat.id,
+		});
 	}
 	
 	
@@ -292,6 +297,12 @@ class ChatPageModel
 		
 		/* Rename title */
 		chat.title = new_name;
+		
+		/* Send api */
+		await sendApi("/api/chat/rename", {
+			chat_id: chat.id,
+			title: new_name,
+		});
 	}
 	
 	

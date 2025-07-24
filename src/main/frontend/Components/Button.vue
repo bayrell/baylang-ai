@@ -4,7 +4,8 @@
 	align-items: center;
 	justify-content: center;
 	cursor: pointer;
-	padding: 5px 10px;
+	border-radius: 5px;
+	padding: 8px 16px;
 	border: none;
 	outline: none;
 	&:hover{

@@ -18,9 +18,14 @@
 	}
 	&__send_message :deep(.button){
 		width: 150px;
+		border-top-left-radius: 0px;
+		border-bottom-left-radius: 0px;
 	}
 	&__send_message :deep(.input){
 		flex: 1;
+		border-right-width: 0;
+		border-top-right-radius: 0px;
+		border-bottom-right-radius: 0px;
 	}
 }
 .chat_main :deep(.chat_typing){

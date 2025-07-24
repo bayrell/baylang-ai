@@ -1,8 +1,9 @@
 <style lang="scss" scoped>
 .input{
-	padding: 5px 10px;
-	outline: 0;
+	padding: 8px;
 	border: 1px solid var(--border-color);
+	border-radius: 5px;
+	outline: 0;
 }
 </style>
 
