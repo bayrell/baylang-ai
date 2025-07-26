@@ -67,6 +67,16 @@ class ChatHistory
 	
 	
 	/**
+	 * Returns last message
+	 */
+	lastMessage()
+	{
+		if (this.messages.length == 0) return null;
+		return this.messages[this.messages.length - 1];
+	}
+	
+	
+	/**
 	 * Find message
 	 */
 	findMessageById(id)
@@ -93,7 +103,7 @@ class ChatHistory
 		}
 		else
 		{
-			item.text = message.text;
+			item.content = message.content;
 		}
 	}
 	

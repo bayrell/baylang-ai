@@ -18,10 +18,11 @@ class Database:
             host=self.host,
             user=self.user,
             password=self.password,
-            database=self.database
+            database=self.database,
         )
         cursor = connection.cursor()
         try:
+            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
             cursor.execute("SET NAMES utf8mb4")
             cursor.execute("SET CHARACTER SET utf8mb4")
             connection.commit()

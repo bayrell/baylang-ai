@@ -49,6 +49,7 @@ class Socket
 	 */
 	onDisconnect()
 	{
+		console.log("Disconnected from websocket");
 	}
 	
 	
@@ -74,8 +75,19 @@ class Socket
 			var chat = this.model.findChatById(chat_id);
 			if (!chat) return;
 			
-			chat.setTyping(false);
+			/* Update message */
 			chat.updateMessage(item.message);
+			
+			/* Set typing */
+			var message = chat.lastMessage();
+			if (message == null) chat.setTyping(true);
+			else
+			{
+				var line = message.lastLine();
+				if (line == null) chat.setTyping(true);
+				else if (line.content == "") chat.setTyping(true);
+				else chat.setTyping(false);
+			}
 		}
 		else if (item.event == "start_chat")
 		{
@@ -324,7 +336,12 @@ class ChatPageModel
 		/* Create message */
 		var item = new ChatMessage()
 		item.sender = "human";
-		item.text = message;
+		item.content = [
+			{
+				"block": "text",
+				"content": message,
+			}
+		];
 		
 		/* Add message to history */
 		chat.addMessage(item);

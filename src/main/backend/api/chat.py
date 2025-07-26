@@ -60,6 +60,17 @@ class ChatProvider:
 		return await self.database.fetch("select * from chats where id=%s", (id,))
 	
 	
+	def convert_message(self, message):
+		
+		"""
+		Convert message to dict from database
+		"""
+		
+		message = dict(message)
+		message["content"] = self.helper.json_decode(message["content"])
+		return message
+	
+	
 	async def get_items_by_query(self, query, params=None):
 		
 		"""
@@ -93,7 +104,7 @@ class ChatProvider:
 			chat_id = message["chat_id"]
 			chat_pos = index[chat_id] if chat_id in index else None
 			if pos is not None:
-				result[chat_pos]["messages"].append(dict(message))
+				result[chat_pos]["messages"].append(self.convert_message(message))
 		
 		return result
 	
@@ -125,7 +136,7 @@ class ChatProvider:
 			args.append(limit)
 		
 		history = await self.database.fetchall(query, args)
-		history = list(map(dict, history))
+		history = list(map(self.convert_message, history))
 		history.reverse()
 		return history
 	
@@ -135,20 +146,36 @@ class ChatProvider:
 		Функция для добавления сообщения
 		"""
 		gmtime_now = self.helper.get_current_datetime()
+		content = self.helper.json_encode([{"block": "text", "content": text}])
 		return await self.database.insert(
-			"INSERT INTO messages (chat_id, sender, text, gmtime_created, gmtime_updated) VALUES (%s, %s, %s, %s, %s)",
-			(chat_id, sender, text, gmtime_now, gmtime_now)
+			"INSERT INTO messages (chat_id, sender, content, gmtime_created, gmtime_updated) VALUES (%s, %s, %s, %s, %s)",
+			(chat_id, sender, content, gmtime_now, gmtime_now)
 		)
 
 	
-	async def update_message(self, message_id: int, text: str):
+	async def update_message(self, message_id: int, question):
 		"""
 		Функция обновления сообщения
 		"""
 		gmtime_now = self.helper.get_current_datetime()
 		return await self.database.execute(
-			"UPDATE messages SET text=%s, gmtime_updated=%s WHERE id=%s",
-			(text, gmtime_now, message_id)
+			"""
+			UPDATE messages
+			SET `content`=%s,
+				`input_tokens`=%s,
+				`output_tokens`=%s,
+				`total_tokens`=%s,
+				`gmtime_updated`=%s
+			WHERE `id`=%s
+			""",
+			(
+				self.helper.json_encode(question.get_content()),
+				self.helper.json_encode(question.get_usage("input_tokens")),
+				self.helper.json_encode(question.get_usage("output_tokens")),
+				self.helper.json_encode(question.get_usage("total_tokens")),
+				gmtime_now,
+				message_id
+			)
 		)
 	
 	

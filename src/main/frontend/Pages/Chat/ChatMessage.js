@@ -2,7 +2,7 @@ class ChatMessage
 {
 	id = "";
 	sender = "";
-	text = "";
+	content = [];
 	
 	
 	/**
@@ -12,7 +12,7 @@ class ChatMessage
 	{
 		this.id = data.id;
 		this.sender = data.sender;
-		this.text = data.text;
+		this.content = data.content;
 	}
 	
 	
@@ -21,7 +21,19 @@ class ChatMessage
 	 */
 	getLines()
 	{
-		return this.text.split("\n");
+		if (Array.isArray(this.content)) return this.content;
+		return [];
+	}
+	
+	
+	/**
+	 * Last line
+	 */
+	lastLine()
+	{
+		var lines = this.getLines();
+		if (lines.length == 0) return null;
+		return lines[lines.length - 1];
 	}
 }
 

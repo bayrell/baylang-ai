@@ -33,6 +33,12 @@ class Helper:
     def json_encode(self, obj, indent=2):
         return json.dumps(obj, indent=indent, cls=JSONEncoder, ensure_ascii=False, helper=self)
     
+    def json_decode(self, content, default = None):
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            return default
+    
     def json_response(self, value):
         response = JSONResponse(value, helper=self)
         return response
