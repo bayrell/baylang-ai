@@ -9,6 +9,7 @@
         padding: 10px;
         background-color: var(--hover-color);
         border-radius: 5px;
+        overflow-x: auto;
     }
 }
 .chat_main__message--human{

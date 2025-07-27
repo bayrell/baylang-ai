@@ -19,7 +19,7 @@ class Client:
         self.connected_clients.remove(websocket)
     
     
-    async def send_broadcast_message(self, message):
+    async def send_broadcast_message(self, event, message):
     
         """
         Отправить сообщение всем клиентам
@@ -28,7 +28,10 @@ class Client:
         disconnected_clients = []
         for websocket in self.connected_clients:
             try:
-                await websocket.send_text(self.helper.json_encode(message))
+                await websocket.send_text(self.helper.json_encode({
+                    event: event,
+                    message: message,
+                }))
             except WebSocketDisconnect:
                 self.disconnected_clients.add(websocket)
         

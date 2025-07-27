@@ -8,7 +8,7 @@ from ai import AI, Tools, McpServer
 from database import Database
 from client import Client
 from helper import Helper
-from api.chat import ChatApi, ChatProvider
+from api.chat import ChatApi
 
 logging.getLogger("mysql.connector").setLevel(logging.WARNING)
 #logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -127,15 +127,11 @@ class App(Container):
         
         # Register providers
         self.singleton("chat_api", lambda: ChatApi(self))
-        self.singleton("chat_provider", lambda: ChatProvider(self))
         self.singleton("client_provider", lambda: Client(self))
         self.singleton("helper", lambda: Helper())
         self.singleton("mcp", lambda: McpServer(self))
         self.singleton("tools", lambda: Tools(self))
         self.singleton("web", lambda: Web(self))
-        
-        # Init providers
-        self.init()
     
     def path(self, *args):
         args = [self.base_path] + list(args)

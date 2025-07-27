@@ -13,12 +13,32 @@ class Database:
         self.database = ""
         self.connection = threading.local()
     
+    def escape_field(self, field):
+    
+        """
+        Escape field
+        """
+        
+        if field[0] != "`":
+            return "`" + field + "`"
+        return field
+
+    def join_fields(self, fields):
+        
+        """
+        Join fields
+        """
+        
+        fields = list(map(self.escape_field, fields))
+        return ",".join(fields)
+    
     def connect(self):
         connection = mysql.connector.connect(
             host=self.host,
             user=self.user,
             password=self.password,
             database=self.database,
+            autocommit=True,
         )
         cursor = connection.cursor()
         try:

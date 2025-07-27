@@ -2,25 +2,15 @@ import json, starlette
 from datetime import datetime, timezone
 
 class JSONEncoder(json.JSONEncoder):
-    def __init__(self, *args, **kwargs):
-        self.helper = kwargs["helper"]
-        del kwargs["helper"]
-        json.JSONEncoder.__init__(self, *args, **kwargs)
-    
     def default(self, obj):
         if isinstance(obj, datetime):
-            return self.helper.format_datetime(obj)
+            return format_datetime(obj)
         return json.JSONEncoder.default(self, obj)
 
 class JSONResponse(starlette.responses.JSONResponse):
-    def __init__(self, *args, **kwargs):
-        self.helper = kwargs["helper"]
-        del kwargs["helper"]
-        super().__init__(*args, **kwargs)
     def render(self, content) -> bytes:
         return json.dumps(
             content,
-            helper=self.helper,
             cls=JSONEncoder,
             ensure_ascii=False,
             allow_nan=False,
@@ -28,43 +18,83 @@ class JSONResponse(starlette.responses.JSONResponse):
             separators=(",", ":"),
         ).encode("utf-8")
 
+def json_encode(obj, indent=2):
+    return json.dumps(obj, indent=indent, cls=JSONEncoder, ensure_ascii=False)
+
+def json_decode(content, default=None):
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        return default
+
+def json_response(value):
+    response = JSONResponse(value)
+    return response
+
+def format_datetime(utc):
+    """
+    Форматирует дату
+    """
+    if utc is None:
+        return None
+    formatted_time = utc.strftime("%Y-%m-%d %H:%M:%S")
+    return formatted_time
+
+def get_datetime_from_utc(utc):
+    """
+    Получить дату из UTC
+    """
+    value = datetime.datetime.strptime(utc, "%Y-%m-%d %H:%M:%S").astimezone(datetime.timezone.utc)
+    return value
+
+def get_current_datetime():
+    """
+    Получить дату по UTC
+    """
+    utc_now = datetime.now(timezone.utc)
+    formatted_time = utc_now.strftime("%Y-%m-%d %H:%M:%S")
+    return formatted_time
+
+
+class Index:
+    def __init__(self, items, key="id"):
+        self.items = items
+        self.index = {}
+        for item in items:
+            value = item[key]
+            self.index[value] = item
+    
+    def item(self, i):
+        if i < 0:
+            return None
+        if i >= len(self.items):
+            return None
+        return self.items[i]
+    
+    def get(self, key):
+        if not(key in self.index):
+            return None
+        return self.index[key]
+    
+    def __len__(self):
+        return len(self.items)
+
 class Helper:
     
-    def json_encode(self, obj, indent=2):
-        return json.dumps(obj, indent=indent, cls=JSONEncoder, ensure_ascii=False, helper=self)
+    def json_encode(self, *args, **kwargs):
+        return json_encode(*args, **kwargs)
     
-    def json_decode(self, content, default = None):
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            return default
+    def json_decode(self, *args, **kwargs):
+        return json_decode(*args, **kwargs)
     
-    def json_response(self, value):
-        response = JSONResponse(value, helper=self)
-        return response
+    def json_response(self, *args, **kwargs):
+        return json_response(*args, **kwargs)
     
-    def format_datetime(self, utc):
-        """
-        Форматирует дату
-        """
-        if utc is None:
-            return None
-        formatted_time = utc.strftime("%Y-%m-%d %H:%M:%S")
-        return formatted_time
+    def format_datetime(self, *args, **kwargs):
+        return format_datetime(*args, **kwargs)
     
-    
-    def get_datetime_from_utc(self, utc):
-        """
-        Получить дату из UTC
-        """
-        value = datetime.datetime.strptime(utc, "%Y-%m-%d %H:%M:%S").astimezone(datetime.timezone.utc)
-        return value
-    
+    def get_datetime_from_utc(self, *args, **kwargs):
+        return get_datetime_from_utc(*args, **kwargs)
     
     def get_current_datetime(self):
-        """
-        Получить дату по UTC
-        """
-        utc_now = datetime.now(timezone.utc)
-        formatted_time = utc_now.strftime("%Y-%m-%d %H:%M:%S")
-        return formatted_time
+        return get_current_datetime()

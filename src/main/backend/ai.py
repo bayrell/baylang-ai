@@ -448,14 +448,13 @@ class AI:
         chat_id = question.data["chat_id"]
         
         if kind == "start":
-            await self.client_provider.send_broadcast_message({
-                "event": "start_chat",
-                "message":
+            await self.client_provider.send_broadcast_message(
+                "start_chat",
                 {
                     "id": answer_message_id,
                     "chat_id": chat_id,
                 }
-            })
+            )
             return
         
         if kind == "message":
@@ -481,16 +480,15 @@ class AI:
             await self.chat_provider.update_message(answer_message_id, question)
         
         # Рассылаем всем клиентам
-        await self.client_provider.send_broadcast_message({
-            "event": "update_chat",
-            "message":
+        await self.client_provider.send_broadcast_message(
+            "update_chat",
             {
                 "id": answer_message_id,
                 "chat_id": chat_id,
                 "sender": "assistant",
                 "content": question.get_content(),
             }
-        })
+        )
     
     
     async def send_message(self, chat_id, chat_message_id, answer_message_id, message):
@@ -503,14 +501,13 @@ class AI:
         self.app.log("Receive message: " + message)
         
         # Start chat
-        await self.client_provider.send_broadcast_message({
-            "event": "start_chat",
-            "message":
+        await self.client_provider.send_broadcast_message(
+            "start_chat",
             {
                 "id": answer_message_id,
                 "chat_id": chat_id,
             }
-        })
+        )
         
         # Wait 100ms
         await asyncio.sleep(0.1)
@@ -547,23 +544,21 @@ class AI:
             
             # Send end
             self.app.log("Ok")
-            await self.client_provider.send_broadcast_message({
-                "event": "end_chat",
-                "message":
+            await self.client_provider.send_broadcast_message(
+                "end_chat",
                 {
                     "id": answer_message_id,
                     "chat_id": chat_id,
                 }
-            })
+            )
             
         except Exception as e:
             self.app.exception(e)
-            await self.client_provider.send_broadcast_message({
-                "event": "error_chat",
-                "message":
+            await self.client_provider.send_broadcast_message(
+                "error_chat",
                 {
                     "id": answer_message_id,
                     "chat_id": chat_id,
                     "error": str(e),
                 }
-            })
+            )
