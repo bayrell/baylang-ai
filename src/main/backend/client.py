@@ -1,4 +1,5 @@
 from starlette.websockets import WebSocketDisconnect
+from helper import json_encode
 
 class Client:
     
@@ -19,7 +20,7 @@ class Client:
         self.connected_clients.remove(websocket)
     
     
-    async def send_broadcast_message(self, event, message):
+    async def send_broadcast_message(self, event: str, message: dict):
     
         """
         Отправить сообщение всем клиентам
@@ -28,9 +29,9 @@ class Client:
         disconnected_clients = []
         for websocket in self.connected_clients:
             try:
-                await websocket.send_text(self.helper.json_encode({
-                    event: event,
-                    message: message,
+                await websocket.send_text(json_encode({
+                    "event": event,
+                    "message": message,
                 }))
             except WebSocketDisconnect:
                 self.disconnected_clients.add(websocket)

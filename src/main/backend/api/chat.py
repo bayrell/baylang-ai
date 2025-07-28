@@ -1,7 +1,7 @@
 import asyncio, time
-from helper import json_encode, json_response
-from model import Repository, Model, Chat, Message, create_block
-from pydantic import BaseModel
+from helper import json_encode, json_response, convert_request
+from model import Repository, Model, Chat, Message, AbstractBlock, AbstractBlockList
+from pydantic import BaseModel, validator
 from starlette.requests import Request
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
@@ -10,7 +10,7 @@ class ChatApi:
     
     def __init__(self, app):
         self.app = app
-        self.db = app.get("database")
+        self.database = app.get("database")
         self.client_provider = self.app.get("client_provider")
         self.starlette = app.get("starlette")
         self.starlette.add_route("/api/chat/load", self.load, methods=["POST"])
@@ -40,8 +40,9 @@ class ChatApi:
         # Get result
         chat_items = [item.model_dump() for item in chat_items]
         for chat in chat_items:
-            messages = repository.get_messages_by_chat_id(chat.id)
-            item["messages"] = [message.model_dump() for message in messages]
+            messages = repository.get_messages_by_chat_id(chat.get("id"))
+            chat["id"] = chat["uid"]; del chat["uid"]
+            chat["messages"] = [message.model_dump() for message in messages]
         
         # Return result
         return json_response({
@@ -60,35 +61,40 @@ class ChatApi:
         """
         
         class DTO(BaseModel):
-            uid: str
-            content: list[AbstractBlock]
-            
-            @validator("content", pre=True, each_item=True, check_fields=False)
-            def parse_content(cls, item):
-                return create_block(item)
+            id: str
+            name: str = ""
+            content: AbstractBlockList
         
         # Get form data
-        post_data = await request.form()
-        post_data = DTO(**dict(post_data))
+        response, post_data = await convert_request(request, DTO)
+        if response:
+            return response
         
         # Receive new message	
-        self.app.log("Send " + post_data.uid)
+        self.app.log("Send " + post_data.id)
         
-        # Check chat_id
-        if chat_id is None or chat_id == "":
+        # Check chat uid
+        if post_data.id is None or post_data.id == "":
             self.app.log("Error: chat_id is None")
-            return self.helper.json_response({
+            return json_response({
                 "code": -1,
                 "message": "chat_id is None",
             })
         
         # Find chat by id
-        chat = await Chat.get_by_id(self.database, chat_id)
+        chat = await Chat.get_by_uid(self.database, post_data.id)
         if chat is None:
+            
+            if post_data.name == "":
+                return json_response({
+                    "code": -1,
+                    "message": "chat_name is None",
+                })
             
             # Create chat
             chat = Chat(
-                name = "Chat " + str(chat_id)
+                name = post_data.name,
+                uid = post_data.id,
             )
             await chat.save(self.database)
             
@@ -96,43 +102,22 @@ class ChatApi:
             await self.client_provider.send_broadcast_message(
                 "create_chat",
                 {
-                    "chat_id": chat.id,
-                    "chat_uid": post_data.uid,
-                    "chat_name": post_data.name,
+                    "id": chat.uid,
+                    "name": post_data.name,
+                    "content": [block.model_dump() for block in post_data.content],
                 }
             )
         
-        # Create human message
-        message_human = Message(
-            sender = Message.SENDER_HUMAIN,
-            chat_id = chat_id,
-            content = post_data.content
-        )
-        
-        # Create AI message
-        message_ai = Message(
-            sender = Message.SENDER_AI,
-            chat_id = chat_id,
-        )
-        
-        # Save messages to database
-        await message_human.save(self.database)
-        await message_ai.save(self.database)
-        
         # Send message to LLM
         ai = self.app.get("ai")
-        asyncio.create_task(ai.send_message(
-            chat=chat,
-            message_human=message_human,
-            message_ai=message_ai
-        ))
+        _, message_ai = await ai.send_question(chat, post_data.content, create_async_task=True)
         
         # Response
         return json_response({
             "code": 1,
             "message": "Ok",
             "data": {
-                "chat_id": chat.id,
+                "chat_id": chat.uid,
                 "answer": message_ai.model_dump(),
             },
         })
@@ -149,11 +134,14 @@ class ChatApi:
             title: str
         
         # Get form data
-        post_data = await request.form()
-        post_data = DTO(**dict(post_data))
+        response, post_data = await convert_request(request, DTO)
+        if response:
+            return response
         
         # Rename title
-        await Chat.rename(self.database, post_data.chat_id, post_data.title)
+        chat = await Chat.get_by_uid(self.database, post_data.chat_id)
+        if chat:
+            await Chat.rename(self.database, chat.id, post_data.title)
         
         # Returns response
         return json_response({
@@ -172,11 +160,14 @@ class ChatApi:
             chat_id: int
         
         # Get form data
-        post_data = await request.form()
-        post_data = DTO(**dict(post_data))
+        response, post_data = await convert_request(request, DTO)
+        if response:
+            return response
         
         # Delete chat
-        await Chat.delete(self.database, post_data.chat_id)
+        chat = await Chat.get_by_uid(self.database, post_data.chat_id)
+        if chat:
+            await Chat.delete(self.database, chat.id)
         
         # Return result
         return json_response({
@@ -201,10 +192,6 @@ class ChatApi:
         
         # Listen socket
         try:
-            
-            # Client connected message
-            self.app.log("Client connected")
-            
             # Send Hello
             helper = self.app.get("helper")
             await websocket.send_text(helper.json_encode({
@@ -216,9 +203,6 @@ class ChatApi:
                 await websocket.receive_text()
         
         except WebSocketDisconnect:
-            
-            # Client disconnected message
-            self.app.log("Client disconnected")
             client_provider.remove(websocket)
         
         except Exception as e:

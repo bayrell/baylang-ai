@@ -1,9 +1,9 @@
-import json, starlette
-from datetime import datetime, timezone
+import re, json, starlette, datetime
+from pydantic import ValidationError
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, datetime):
+        if isinstance(obj, datetime.datetime):
             return format_datetime(obj)
         return json.JSONEncoder.default(self, obj)
 
@@ -27,9 +27,67 @@ def json_decode(content, default=None):
     except json.JSONDecodeError as e:
         return default
 
-def json_response(value):
-    response = JSONResponse(value)
+def json_response(value, status_code=200):
+    response = JSONResponse(value, status_code=status_code)
     return response
+
+def parse_nested_content(form_data):
+    
+    """
+    Parse nested form data
+    """
+    
+    result = {}
+    
+    def create(keys, index):
+        key = keys[index]
+        if re.fullmatch(r"\d+", key):
+            return []
+        return {}
+    
+    def add(result, keys, value):
+        for i, key in enumerate(keys[:-1]):
+            
+            if isinstance(result, dict):
+                if not key in result:
+                    result[key] = create(keys, i + 1)
+            elif isinstance(result, list):
+                key = int(key)
+                if key >= len(result):
+                    result.append(create(keys, i + 1))
+            
+            result = result[key]
+        
+        last_key = keys[-1]
+        if isinstance(result, dict):
+            result[last_key] = value
+        elif isinstance(result, list):
+            result.append(value)
+    
+    for key, value in form_data.multi_items():
+        keys = re.findall(r"\w+", key)
+        add(result, keys, value)
+    return result
+
+async def convert_request(request, dto):
+    
+    """
+    Convert request to DTO
+    """
+    
+    response = None
+    data = await request.form()
+    data = parse_nested_content(data)
+    
+    try:
+        data = dto(**data)
+    except ValidationError as e:
+        response = json_response({
+            "code": -1,
+            "message": str(e)
+        }, status_code=500)
+    
+    return response, data
 
 def format_datetime(utc):
     """
@@ -51,7 +109,7 @@ def get_current_datetime():
     """
     Получить дату по UTC
     """
-    utc_now = datetime.now(timezone.utc)
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
     formatted_time = utc_now.strftime("%Y-%m-%d %H:%M:%S")
     return formatted_time
 
@@ -59,12 +117,13 @@ def get_current_datetime():
 class Index:
     def __init__(self, key="id"):
         self.index = {}
+        self.key = key
     
     def extend(self, items):
         for item in items:
-            value = item[key]
+            value = item[self.key]
             if not value in self.index:
-                self.index = []
+                self.index[value] = []
             self.index[value].append(item)
     
     def getall(self, key):

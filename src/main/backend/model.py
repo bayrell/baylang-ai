@@ -1,10 +1,26 @@
 from __future__ import annotations
 import json
 from datetime import datetime
-from helper import Index, json_encode, json_decode, get_current_datetime
+from helper import Index, json_encode, json_decode, get_current_datetime, get_datetime_from_utc
+from langchain.agents.output_parsers.tools import ToolAgentAction
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
+from langchain_core.messages.ai import UsageMetadata
 from pydantic import BaseModel, Field, ConfigDict, validator
-from typing import ClassVar, Literal, Union
+from pydantic.functional_validators import BeforeValidator
+from typing import Annotated, ClassVar, Literal, List, Optional, Union
+
+
+def convert_datetime(value):
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        value = value.strip()
+        if value == "" or value == "0000-00-00 00:00:00":
+            return None
+        return get_datetime_from_utc(value)
+    return None
+
+DateTimeType = Annotated[Optional[datetime], BeforeValidator(convert_datetime)]
 
 
 class Repository:
@@ -100,6 +116,7 @@ class Model(BaseModel):
         item = await database.fetch(f"""
             select {database.join_fields(fields)} from {table_name} where {",".join(where)}
         """, args)
+        
         return cls.from_database(item)
     
     
@@ -136,65 +153,74 @@ class Model(BaseModel):
         await database.execute("delete from chats where " + ",".join(where), args)
     
     
-    async def create(self):
+    async def create(self, database):
         
         """
         Create object
         """
         
-        item = self.to_database(self)
-        gmtime_now = get_current_datetime()
-        
         # Add updated datetime
+        gmtime_now = get_current_datetime()
         if self.has_updated_datetime():
-            if not "gmtime_created" in item:
-                item["gmtime_created"] = gmtime_now
-            if not "gmtime_updated" in item:
-                item["gmtime_updated"] = gmtime_now
+            if self.gmtime_created is None:
+                self.gmtime_created = gmtime_now
+            if self.gmtime_updated is None:
+                self.gmtime_updated = gmtime_now
+        
+        # Convert item
+        item = self.to_database(self)
+        table_name = self.table_name()
+        
+        # Remove primary key
+        if self.autoincrement():
+            pk = self.primary_key()
+            for key in pk:
+                if key in item:
+                    del item[key]
         
         keys = item.keys()
         fields = [database.escape_field(key) for key in keys]
         values = ["%s"] * len(keys)
         args = [item[key] for key in keys]
-        
-        result = await self.database.insert(
-            f"""
-            INSERT INTO chats ({",".join(fields)})
+        query = f"""
+            INSERT INTO {table_name} ({",".join(fields)})
             VALUES ({",".join(values)})
-            """,
-            args
-        )
+            """
+        
+        result = await database.insert(query, args)
         
         if self.autoincrement():
             pk = self.primary_key()
             if len(pk) == 1:
                 key = pk[0]
                 if not key in item:
-                    self[key] = result
+                    setattr(self, key, result)
         
         self._updated = set()
         self._old_pk = self.get_primary_key()
     
     
-    async def update(self):
+    async def update(self, database):
         
         """
         Update to database
         """
         
-        item = self.to_database(self)
+        # Add updated datetime
         gmtime_now = get_current_datetime()
+        if self.has_updated_datetime():
+            if self.gmtime_updated is None:
+                self.gmtime_updated = gmtime_now
+        
+        # Convert item
+        item = self.to_database(self)
+        table_name = self.table_name()
         
         # Get updated fields
         updated = self.updated()
         for key in updated:
             if key in item:
                 del item[key]
-        
-        # Add updated datetime
-        if self.has_updated_datetime():
-            if not "gmtime_updated" in item:
-                item["gmtime_updated"] = gmtime_now
         
         keys = item.keys()
         values = [database.escape_field(key) + "=%s" for key in keys]
@@ -204,31 +230,29 @@ class Model(BaseModel):
         
         args = [item[key] for key in keys]
         args.extend([self._old_pk[key] for key in pk_keys])
-        
-        await self.database.execute(
-            f"""
-            UPDATE chats
+        query = f"""
+            UPDATE {table_name}
             SET {",".join(values)}
             WHERE {",".join(pk_values)}
-            """,
-            args
-        )
+            """
+        
+        await database.execute(query, args)
         
         self._updated = set()
         self._old_pk = self.get_primary_key()
         
     
-    async def save(self):
+    async def save(self, database):
         
         """
         Save to database
         """
         
         if self.is_create():
-            await self.create()
+            await self.create(database)
         
         else:
-            await self.update()
+            await self.update(database)
 
     
     def get_primary_key(self, data=None):
@@ -243,7 +267,7 @@ class Model(BaseModel):
         pk = self.primary_key()
         item = {}
         for key in pk:
-            item[key] = data.get(key)
+            item[key] = data[key] if key in data else None
         return item
     
     
@@ -281,6 +305,10 @@ class Model(BaseModel):
         self._old_pk = self.get_primary_key(data)
     
     
+    def __contains__(self, key):
+        return key in self.__annotations__
+    
+    
     def __getitem__(self, key):
         return getattr(self, key)
     
@@ -295,8 +323,8 @@ class Chat(Model):
     id: int = 0
     uid: str = ""
     name: str = ""
-    gmtime_created: datetime = None
-    gmtime_updated: datetime = None
+    gmtime_created: DateTimeType = None
+    gmtime_updated: DateTimeType = None
     
     @classmethod
     def autoincrement(cls):
@@ -316,7 +344,7 @@ class Chat(Model):
     
     @classmethod
     def from_database(cls, item, create_instance=True):
-        if not create_instance:
+        if not create_instance or item is None:
             return item
         return Chat(**item)
     
@@ -339,6 +367,22 @@ class Chat(Model):
         """)
         items = [cls.from_database(item) for item in items]
         return items
+    
+    
+    @classmethod
+    async def get_by_uid(cls, database, uid: str, fields=["*"]):
+        
+        """
+        Get chat by uid
+        """
+        
+        item = await database.fetch(f"""
+            SELECT {database.join_fields(fields)}
+            FROM chats
+            WHERE uid=%s
+        """, [uid])
+        
+        return cls.from_database(item)
     
     
     @classmethod
@@ -383,6 +427,9 @@ class AbstractBlock(Model):
     
     def get_text(self):
         return self.content
+    
+    def trim(self):
+        pass
 
 
 class BlockText(AbstractBlock):
@@ -399,6 +446,19 @@ class BlockCode(AbstractBlock):
     
     def is_block_end(self):
         return len(self.content) >= 6 and self.content[-3:] == "```"
+    
+    def get_text(self):
+        return "```" + self.language + "\n" + self.content + "\n" + "```"
+    
+    def trim(self):
+        lines = self.content.split()
+        if len(lines) > 1:
+            if lines[0][0:3] == "```":
+                lines = lines[1:]
+        if len(lines) > 1:
+            if lines[-1][0:3] == "```":
+                lines = lines[0:-1]
+        self.content = "\n".join(lines)
 
 
 class BlockTool(AbstractBlock):
@@ -408,7 +468,9 @@ class BlockTool(AbstractBlock):
     tool: Tool = None
 
 
-def create_block(item: dict):
+def create_block(item):
+    if isinstance(item, AbstractBlock):
+        return item
     block_type = item["block"]
     if block_type == "text":
         return BlockText(**item)
@@ -419,6 +481,14 @@ def create_block(item: dict):
     return AbstractBlock(**item)
 
 
+def convert_block_list(value):
+    if isinstance(value, list):
+        value = [create_block(item) for item in value]
+        return value
+    return None
+
+AbstractBlockList = Annotated[List[AbstractBlock], BeforeValidator(convert_block_list)]
+
 class Message(Model):
     
     SENDER_AI: ClassVar[str] = "ai"
@@ -426,16 +496,12 @@ class Message(Model):
     id: int = 0
     chat_id: int = None
     sender: Literal["ai", "human"] = None
-    content: list[AbstractBlock] = []
+    content: AbstractBlockList = []
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
-    gmtime_created: datetime = None
-    gmtime_updated: datetime = None
-    
-    @validator("content", pre=True, each_item=True, check_fields=False)
-    def parse_content(cls, item):
-        return create_block(item)
+    gmtime_created: DateTimeType = None
+    gmtime_updated: DateTimeType = None
     
     @classmethod
     def autoincrement(cls):
@@ -455,6 +521,8 @@ class Message(Model):
     
     @classmethod
     def from_database(cls, item, chat: Index = None, create_instance=True):
+        if item is None:
+            return None
         item = item.copy()
         item["content"] = json_decode(item["content"])
         if not create_instance:
@@ -490,7 +558,7 @@ class Message(Model):
         query = f"""
             SELECT {database.join_fields(fields)} FROM messages
             WHERE chat_id in ({','.join(['%s'] * len(chat_id))})
-            ORDER BY id desc
+            ORDER BY id asc
         """
         
         args = chat_id
@@ -503,6 +571,31 @@ class Message(Model):
         return items
     
     
+    def add_usage(self, usage_metadata: UsageMetadata):
+        
+        """
+        Add usage
+        """
+        
+        def get_usage(usage_metadata: UsageMetadata, key: str):
+            return usage_metadata[key] if key in usage_metadata else 0
+        
+        self.input_tokens += get_usage(usage_metadata, "input_tokens")
+        self.output_tokens += get_usage(usage_metadata, "output_tokens")
+        self.total_tokens += get_usage(usage_metadata, "total_tokens")
+    
+    
+    def get_text(self):
+        
+        """
+        Returns message content
+        """
+        
+        items = [item.get_text() for item in self.content]
+        content = "\n\n".join(items)
+        return content
+    
+    
     def get_message(self):
         
         """
@@ -510,8 +603,7 @@ class Message(Model):
         """
         
         # Get message content
-        items = [item.get_text() for item in self.content]
-        content = " ".join(items)
+        content = self.get_text()
         
         # Create message
         if self.sender == Message.SENDER_HUMAIN:
@@ -530,10 +622,10 @@ class Message(Model):
         return self.content[-1]
     
     
-    def change_last_block(self, block):
+    def replace_last_block(self, block):
         
         """
-        Change last block
+        Replace last block
         """
         
         self.content[-1] = block
@@ -566,7 +658,7 @@ class Message(Model):
                 block = BlockCode(content=last_block.content)
                 block.add_char("\n")
                 block.detect_language()
-                self.change_last_block(block)
+                self.replace_last_block(block)
                 return
         
         # If last block is code
@@ -594,7 +686,7 @@ class Message(Model):
         
         # Get last block
         last_block = self.get_last_block()
-        if last_block is None:
+        if last_block is None or isinstance(last_block, BlockTool):
             last_block = self.add_text_block()
         
         for char in content:
@@ -602,4 +694,31 @@ class Message(Model):
                 last_block = self.add_new_line()
             else:
                 last_block.add_char(char)
+    
+    
+    def add_tool(self, action: ToolAgentAction):
+        
+        """
+        Add tool
+        """
+        
+        # Get last block
+        last_block = self.get_last_block()
+        
+        # Create new block
+        block = BlockTool(
+            content = action.log,
+            tool = Tool(
+                name = action.tool,
+                args = action.tool_input,
+            )
+        )
+        
+        # Add new block
+        if last_block is None or not last_block.is_empty() or \
+            isinstance(last_block, BlockTool):
+                self.content.append(block)
+        else:
+            self.replace_last_block(block)
+        
     

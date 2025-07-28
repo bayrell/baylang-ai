@@ -3,10 +3,10 @@ import numpy as np
 from langchain.agents.format_scratchpad.tools import format_to_tool_messages
 from langchain.agents.output_parsers.tools import ToolAgentAction
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage
-from langchain_core.messages.ai import UsageMetadata, add_usage, add_ai_message_chunks
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages.ai import UsageMetadata, add_ai_message_chunks
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
+from model import Chat, Message, AbstractBlock
 from mcp.server.fastmcp import FastMCP
 from starlette.routing import Mount
 
@@ -16,81 +16,13 @@ class Question:
     def __init__(self, content="", history=None):
         self.answer = ""
         self.answer_next = 0
+        self.chat = None
         self.content = content
-        self.current_block = ""
-        self.data = {}
+        self.message_ai = None
+        self.message_human = None
         self.context = []
         self.history = []
-        self.messages = []
-        self.lines = []
-        self.usage_metadata = UsageMetadata()
         self.response_step = []
-    
-    
-    def get_current_line(self):
-        if len(self.lines) == 0:
-            return None
-        return self.lines[-1]
-    
-    
-    def add_new_line(self, block="text", content=""):
-        
-        """
-        Add new line
-        """
-        
-        line = {
-            "block": block,
-            "content": content,
-        }
-        self.lines.append(line)
-        return line
-    
-    
-    def set_line_content(self, block=None, content=None, tool=None):
-        
-        """
-        Set current line content
-        """
-        
-        line = self.get_current_line()
-        if block is not None:
-            line["block"] = block
-        if content is not None:
-            line["content"] = content
-        if tool is not None:
-            line["tool"] = tool
-    
-    
-    def create_new_line(self):
-        
-        """
-        Create new line and detect block
-        """
-        
-        # Get current line
-        current_line = self.get_current_line()
-        if current_line is None:
-            self.add_new_line()
-            return
-        
-        # Detect block of current line
-        if current_line["block"] == "text":
-            if current_line["content"][0:3] == "```":
-                current_line["block"] = "code"
-        else:
-            if current_line["content"][-3:] == "```":
-                self.add_new_line()
-                return
-        
-        # Add new line
-        if current_line["block"] == "code":
-            if not "language" in current_line:
-                lines = current_line["content"][0:3].split("\n")
-                current_line["language"] = lines[0][3:]
-            current_line["content"] += "\n"
-        elif current_line["content"] != "":
-            self.add_new_line()
     
     
     def add_chunk_message(self, chunk: AIMessageChunk):
@@ -99,25 +31,7 @@ class Question:
         Add chunk message
         """
         
-        content = str(chunk.content)
-        if content == "":
-            return
-        
-        # Create current line
-        if len(self.lines) == 0:
-            self.add_new_line()
-        
-        # Add content
-        self.answer += content
-        
-        # Add lines
-        current_line = self.get_current_line()
-        for char in content:
-            if char == "\n":
-                self.create_new_line()
-                current_line = self.get_current_line()
-            else:
-                current_line["content"] += char
+        self.message_ai.add_chunk(chunk)
         
     
     def add_tool_message(self, action: ToolAgentAction):
@@ -126,22 +40,7 @@ class Question:
         Add run tool message
         """
         
-        # Add new line
-        self.create_new_line()
-        self.set_line_content(
-            block="tool",
-            content=action.log,
-            tool={
-                "name": action.tool,
-                "args": action.tool_input
-            }
-        )
-        self.add_new_line()
-        
-        # Add answer
-        if self.answer != "":
-            self.answer += "\n"
-        self.answer += action.log + "\n"
+        self.message_ai.add_tool(action)
         
     
     def get_history(self):
@@ -152,10 +51,14 @@ class Question:
         
         history = []
         for item in self.history:
-            if isinstance(item, HumanMessage):
-                history.append("Human:\n" + item.content)
-            elif isinstance(item, AIMessage):
-                history.append("AI:\n" + item.content)
+            if item.id == self.message_ai.id or \
+                item.id == self.message_human.id:
+                    continue
+            message = item.get_message()
+            if isinstance(message, HumanMessage):
+                history.append("Human:\n" + message.content)
+            elif isinstance(message, AIMessage):
+                history.append("AI:\n" + message.content)
         return history
     
     
@@ -186,30 +89,14 @@ class Question:
         prompt.extend(format_to_tool_messages(self.response_step))
         return prompt
     
-    def get_content(self):
-        if len(self.lines) == 0:
-            return []
-        if self.lines[-1]["content"] == "":
-            return self.lines[:-1]
-        return self.lines
-    
-    def get_usage(self, key):
-        return self.usage_metadata[key] if key in self.usage_metadata else 0
-    
-    def get_usage_metadata(self):
-        return {
-            "input_tokens": self.get_usage("input_tokens"),
-            "output_tokens": self.get_usage("output_tokens"),
-            "total_tokens": self.get_usage("total_tokens"),
-        }
-    
 
 class Agent:
     
-    def __init__(self, app, llm, callback):
+    def __init__(self, app, llm):
         self.app = app
         self.llm = llm
-        self.callback = callback
+        self.database = app.get("database")
+        self.client_provider = app.get("client_provider")
         
         # Bind tools
         self.tools = app.get("tools")
@@ -235,9 +122,7 @@ class Agent:
         tool_calls = []
         
         # Start question
-        await self.send_callback("start", {
-            "question": question,
-        })
+        await self.on_start(question)
         
         # Get prompt
         prompt = await question.get_prompt()
@@ -256,10 +141,7 @@ class Agent:
             question.add_chunk_message(chunk)
             
             # Send chunk
-            await self.send_callback("chunk", {
-                "question": question,
-                "chunk": chunk,
-            })
+            await self.on_chunk(question, chunk)
         
         # Merge chunks
         chunk = None
@@ -276,12 +158,14 @@ class Agent:
             response_metadata=chunk.response_metadata if chunk is not None else {},
             usage_metadata=chunk.usage_metadata if chunk is not None else None,
         )
-        question.usage_metadata = add_usage(question.usage_metadata, message.usage_metadata)
-        await self.send_callback("message", {
-            "question": question,
-            "message": message,
-        })
+        question.message_ai.add_usage(message.usage_metadata)
         
+        # Trim messages block
+        for block in question.message_ai.content:
+            block.trim()
+        
+        # Send message
+        await self.on_message(question, message)
         return message
     
     
@@ -320,12 +204,12 @@ class Agent:
             
             if tool:
                 self.app.log("Run tool " + action.log)
+                
+                # Add tool to question
                 question.add_tool_message(action)
-                await self.send_callback("tool", {
-                    "action": action,
-                    "question": question,
-                    "tool": tool,
-                })
+                await self.on_tool(question, action, tool)
+                
+                # Run tool
                 observation = tool.run(action.tool_input)
                 self.app.log("Answer " + str(observation))
             
@@ -351,7 +235,52 @@ class Agent:
             result = await self.run_tools(question, message)
             question.response_step.extend(result)
             step = step + 1
-
+    
+    
+    async def on_start(self, question):
+        await self.client_provider.send_broadcast_message(
+            "start_chat",
+            {
+                "id": question.message_ai.id,
+                "chat_id": question.chat.uid,
+            }
+        )
+    
+    
+    async def on_tool(self, question, action, tool):
+        await self.database_update(question, True)
+    
+    async def on_chunk(self, question, chunk):
+        text_chunk = chunk.content
+        if text_chunk == "":
+            return
+        await self.database_update(question)
+        self.app.print(text_chunk, end="", flush=True)
+    
+    async def on_message(self, question, message):
+        await self.database_update(question, True)
+        self.app.print("\n", end="", flush=True)
+    
+    async def database_update(self, question, force_update=False):
+        
+        """
+        Update message in database
+        """
+        
+        if force_update or len(question.answer) > question.answer_next:
+            question.answer_next += random.randint(10, 30)
+            await question.message_ai.save(self.database)
+        
+        # Send to client
+        await self.client_provider.send_broadcast_message(
+            "update_chat",
+            {
+                "id": question.message_ai.id,
+                "chat_id": question.chat.uid,
+                "sender": "ai",
+                "content": [block.model_dump() for block in question.message_ai.content],
+            }
+        )
 
 # Определим функции
 def add_tool(a: int, b: int) -> int:
@@ -433,79 +362,61 @@ class AI:
             model="qwen2.5:3b",
             temperature=0.5,
         )
-        self.agent = Agent(self.app, self.llm_answer, self.callback)
+        self.agent = Agent(self.app, self.llm_answer)
     
     
-    async def callback(self, request, kind, data):
+    async def send_question(self, chat: Chat, content: list[AbstractBlock], create_async_task=False):
         
         """
-        Send message callback
+        Send question to LLM and save in database
         """
         
-        force_update = False
-        question = data["question"]
-        answer_message_id = question.data["answer_message_id"]
-        chat_id = question.data["chat_id"]
-        
-        if kind == "start":
-            await self.client_provider.send_broadcast_message(
-                "start_chat",
-                {
-                    "id": answer_message_id,
-                    "chat_id": chat_id,
-                }
-            )
-            return
-        
-        if kind == "message":
-            
-            force_update = True
-            self.app.print("\n", end="", flush=True)
-        
-        if kind == "tool":
-            force_update = True
-        
-        if kind == "chunk":
-            
-            # Get text chunk
-            text_chunk = data["chunk"].content
-            if text_chunk == "":
-                return
-            
-            self.app.print(text_chunk, end="", flush=True)
-        
-        # Обновление истории
-        if force_update or len(question.answer) > question.answer_next:
-            question.answer_next += random.randint(10, 30)
-            await self.chat_provider.update_message(answer_message_id, question)
-        
-        # Рассылаем всем клиентам
-        await self.client_provider.send_broadcast_message(
-            "update_chat",
-            {
-                "id": answer_message_id,
-                "chat_id": chat_id,
-                "sender": "assistant",
-                "content": question.get_content(),
-            }
+        # Create human message
+        message_human = Message(
+            sender = Message.SENDER_HUMAIN,
+            chat_id = chat.id,
+            content = content
         )
+        
+        # Create AI message
+        message_ai = Message(
+            sender = Message.SENDER_AI,
+            chat_id = chat.id,
+        )
+        
+        # Save messages to database
+        await message_human.save(self.database)
+        await message_ai.save(self.database)
+        
+        task = self.send_message(
+            chat=chat,
+            message_human=message_human,
+            message_ai=message_ai
+        )
+        
+        if create_async_task:
+            asyncio.create_task(task)
+        else:
+            await task
+        
+        return [message_human, message_ai]
     
     
-    async def send_message(self, chat_id, chat_message_id, answer_message_id, message):
+    async def send_message(self, chat, message_human, message_ai):
    
         """
         Генерация ответа LLM и рассылка всем клиентам по WebSocket.
         """
         
         self.app.log("")
-        self.app.log("Receive message: " + message)
+        self.app.log("Receive message: " + message_human.get_text())
         
         # Start chat
         await self.client_provider.send_broadcast_message(
             "start_chat",
             {
-                "id": answer_message_id,
-                "chat_id": chat_id,
+                "id": message_ai.id,
+                "chat_id": chat.uid,
             }
         )
         
@@ -513,31 +424,17 @@ class AI:
         await asyncio.sleep(0.1)
         
         try:
-            question = Question(message)
-            question.data = {
-                "chat_id": chat_id,
-                "chat_message_id": chat_message_id,
-                "answer_message_id": answer_message_id,
-            }
+            question = Question(message_human.get_text())
+            question.chat = chat
+            question.message_human = message_human
+            question.message_ai = message_ai
             
             # Получить историю сообщений
-            history = await self.chat_provider.get_last_messages(chat_id, 10)
-            
-            # История сообщений
-            question.history = []
-            for item in history:
-                item_id = item["id"]
-                content = item["content"]
-                content = [block["content"] for block in content]
-                content = " ".join(content)
-                if content == "" or \
-                    item_id == chat_message_id or \
-                    item_id == answer_message_id:
-                        continue
-                if item["sender"] == "human":
-                    question.history.append(HumanMessage(content))
-                else:
-                    question.history.append(AIMessage(content))
+            question.history = await Message.get_by_chat_id(
+                self.database,
+                fields=["id", "sender", "content"],
+                chat=chat, limit=10
+            )
             
             # Отправить запрос в LLM
             await self.agent.send(question)
@@ -547,8 +444,8 @@ class AI:
             await self.client_provider.send_broadcast_message(
                 "end_chat",
                 {
-                    "id": answer_message_id,
-                    "chat_id": chat_id,
+                    "id": message_ai.id,
+                    "chat_id": chat.uid,
                 }
             )
             
@@ -557,8 +454,8 @@ class AI:
             await self.client_provider.send_broadcast_message(
                 "error_chat",
                 {
-                    "id": answer_message_id,
-                    "chat_id": chat_id,
+                    "id": message_ai.id,
+                    "chat_id": chat.uid,
                     "error": str(e),
                 }
             )

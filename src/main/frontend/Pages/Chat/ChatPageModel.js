@@ -336,12 +336,7 @@ class ChatPageModel
 		/* Create message */
 		var item = new ChatMessage()
 		item.sender = "human";
-		item.content = [
-			{
-				"block": "text",
-				"content": message,
-			}
-		];
+		item.setContent(message);
 		
 		/* Add message to history */
 		chat.addMessage(item);
@@ -349,8 +344,9 @@ class ChatPageModel
 		
 		/* Send api */
 		await sendApi("/api/chat/send", {
-			chat_id: chat.id,
-			message: message,
+			id: chat.id,
+			name: chat.title,
+			content: item.content,
 		});
 	}
 	
