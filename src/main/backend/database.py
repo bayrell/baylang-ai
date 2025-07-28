@@ -18,7 +18,8 @@ class Database:
         """
         Escape field
         """
-        
+        if field == "*":
+            return field
         if field[0] != "`":
             return "`" + field + "`"
         return field
@@ -56,7 +57,11 @@ class Database:
     
     def reconnect_if_needed(self):
         connection = self.get_connection_value()
-        if not connection or not connection.is_connected():
+        try:
+            if not connection or not connection.is_connected():
+                self.connect()
+        except mysql.connector.InternalError as e:
+            connection.disconnect()
             self.connect()
     
     def get_connection(self):
@@ -95,18 +100,19 @@ class Database:
     
     def sync_execute_fetch(self, query, params=None):
         connection = self.get_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor(dictionary=True, buffered=True)
         result = None
         try:
             cursor.execute(query, params)
             result = cursor.fetchone()
+            cursor.fetchall()
         finally:
             cursor.close()
         return result
     
     def sync_execute_fetchall(self, query, params=None):
         connection = self.get_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor(dictionary=True, buffered=True)
         result = None
         try:
             cursor.execute(query, params)

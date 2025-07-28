@@ -3,39 +3,84 @@ import json
 from datetime import datetime
 from helper import Index, json_encode, json_decode, get_current_datetime
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, ConfigDict, validator
 from typing import ClassVar, Literal, Union
 
 
+class Repository:
+    
+    def __init__(self):
+        self.chat_items = []
+        self.chat_index = Index()
+        self.messages = []
+        self.message_index = Index()
+        self.message_index_chat_id = Index(key="chat_id")
+    
+    def add_chat(self, items):
+        self.chat_items.extend(items)
+        self.chat_index.extend(items)
+    
+    def add_messages(self, items):
+        self.messages.extend(items)
+        self.message_index.extend(items)
+        self.message_index_chat_id.extend(items)
+    
+    def get_chat_by_id(self, chat_id):
+        return self.chat_index.get(chat_id)
+    
+    def get_message_by_id(self, message_id):
+        return self.chat_index.get(message_id)
+    
+    def get_messages_by_chat_id(self, chat_id):
+        return self.message_index_chat_id.getall(chat_id)
+    
+
 class Model(BaseModel):
-    def __getitem__(self, key):
-        return getattr(self, key)
+    
+    model_config = ConfigDict(validate_assignment=True)
+    _updated: set = set()
+    _old_pk: dict = {}
     
     @classmethod
-    def add_foreign_items(cls, key="", items=[], foreign=[], foreign_key=""):
+    def table_name(cls):
+        return ""
+    
+    @classmethod
+    def autoincrement(cls):
+        return False
+    
+    @classmethod
+    def primary_key(cls):
+        return []
+    
+    @classmethod
+    def has_updated_datetime(cls):
+        return False
+    
+    @classmethod
+    def add_foreign_items(cls, items, key, foreign, foreign_key):
+        
+        """
+        Add foreign_item to each item[key]
+        """
+        
         index = Index(items)
         for foreign_item in foreign:
-            pk = foreign_item[foreign_key]
-            item = index.get(pk)
+            item = index.get(foreign_item[foreign_key])
             item[key].append(foreign_item)
-
-
-class Chat(Model):
-    id: int = 0
-    uid: str = ""
-    name: str = ""
-    messages: list[Message] = []
-    gmtime_created: datetime = None
-    gmtime_updated: datetime = None
-    
-    @classmethod
-    def from_database(cls, item):
-        return Chat(**item)
     
     
     @classmethod
-    def to_database(cls, item):
-        return item.model_dump()
+    def get_primary_list_from_data(cls, data):
+        if isinstance(data, list):
+            return data
+        
+        if isinstance(data, dict):
+            pk = cls.primary_key()
+            item = [data[key] if key in data else None for key in pk]
+            return item
+        
+        return [data]
     
     
     @classmethod
@@ -45,9 +90,16 @@ class Chat(Model):
         Get chat by id
         """
         
+        # Get where
+        pk = cls.primary_key()
+        where = [database.escape_field(key) + "=%s" for key in pk]
+        args = cls.get_primary_list_from_data(id)
+        
+        # Query to database
+        table_name = cls.table_name()
         item = await database.fetch(f"""
-            select {database.join_fields(fields)} from chats where id=%s
-        """, [id])
+            select {database.join_fields(fields)} from {table_name} where {",".join(where)}
+        """, args)
         return cls.from_database(item)
     
     
@@ -58,34 +110,235 @@ class Chat(Model):
         Load all items
         """
         
-        items = await get_items_by_query(f"""
-            select {database.join_fields(fields)} from chats order by id desc
+        table_name = cls.table_name()
+        items = await database.fetchall(f"""
+            SELECT {database.join_fields(fields)}
+            FROM {table_name}
         """)
         items = [cls.from_database(item) for item in items]
         return items
     
     
     @classmethod
-    async def create(cls, database, name: str, uid=""):
+    async def delete(cls, database, id):
         
         """
-        Create chat
+        Delete chat by id
         """
         
+        # Get where
+        pk = cls.primary_key()
+        where = [database.escape_field(key) + "=%s" for key in pk.keys()]
+        args = cls.get_primary_list_from_data(id)
+        
+        # Query to database
+        table_name = cls.table_name()
+        await database.execute("delete from chats where " + ",".join(where), args)
+    
+    
+    async def create(self):
+        
+        """
+        Create object
+        """
+        
+        item = self.to_database(self)
         gmtime_now = get_current_datetime()
-        chat_id = await database.insert(
-            """INSERT INTO chats
-                (name, uid, gmtime_created, gmtime_updated)
-                VALUES (%s, %s, %s)
+        
+        # Add updated datetime
+        if self.has_updated_datetime():
+            if not "gmtime_created" in item:
+                item["gmtime_created"] = gmtime_now
+            if not "gmtime_updated" in item:
+                item["gmtime_updated"] = gmtime_now
+        
+        keys = item.keys()
+        fields = [database.escape_field(key) for key in keys]
+        values = ["%s"] * len(keys)
+        args = [item[key] for key in keys]
+        
+        result = await self.database.insert(
+            f"""
+            INSERT INTO chats ({",".join(fields)})
+            VALUES ({",".join(values)})
             """,
-            (name, uid, gmtime_now, gmtime_now)
+            args
         )
-        chat = Chat(
-            id = chat_id,
-            name = name,
-            uid = uid,
+        
+        if self.autoincrement():
+            pk = self.primary_key()
+            if len(pk) == 1:
+                key = pk[0]
+                if not key in item:
+                    self[key] = result
+        
+        self._updated = set()
+        self._old_pk = self.get_primary_key()
+    
+    
+    async def update(self):
+        
+        """
+        Update to database
+        """
+        
+        item = self.to_database(self)
+        gmtime_now = get_current_datetime()
+        
+        # Get updated fields
+        updated = self.updated()
+        for key in updated:
+            if key in item:
+                del item[key]
+        
+        # Add updated datetime
+        if self.has_updated_datetime():
+            if not "gmtime_updated" in item:
+                item["gmtime_updated"] = gmtime_now
+        
+        keys = item.keys()
+        values = [database.escape_field(key) + "=%s" for key in keys]
+        
+        pk_keys = self._old_pk.keys()
+        pk_values = [database.escape_field(key) + "=%s" for key in pk_keys]
+        
+        args = [item[key] for key in keys]
+        args.extend([self._old_pk[key] for key in pk_keys])
+        
+        await self.database.execute(
+            f"""
+            UPDATE chats
+            SET {",".join(values)}
+            WHERE {",".join(pk_values)}
+            """,
+            args
         )
-        return chat
+        
+        self._updated = set()
+        self._old_pk = self.get_primary_key()
+        
+    
+    async def save(self):
+        
+        """
+        Save to database
+        """
+        
+        if self.is_create():
+            await self.create()
+        
+        else:
+            await self.update()
+
+    
+    def get_primary_key(self, data=None):
+        
+        """
+        Returns primary key
+        """
+        
+        if data is None:
+            data = self
+        
+        pk = self.primary_key()
+        item = {}
+        for key in pk:
+            item[key] = data.get(key)
+        return item
+    
+    
+    def is_create(self):
+        
+        """
+        Returns true if model should be create
+        """
+        
+        pk = self.primary_key()
+        id = self._old_pk.get(pk[0])
+        return id is None or id == 0
+    
+    def is_update(self):
+        
+        """
+        Returns true if model should be update
+        """
+        
+        pk = self.primary_key()
+        id = self._old_pk.get(pk[0])
+        return id > 0
+    
+    def updated(self):
+        
+        """
+        Returns updated fields
+        """
+        
+        return list(self._updated)
+    
+    
+    def __init__(self, **data):
+        BaseModel.__init__(self, **data)
+        self._old_pk = self.get_primary_key(data)
+    
+    
+    def __getitem__(self, key):
+        return getattr(self, key)
+    
+    
+    def __setattr__(self, key, value):
+        if key in self.__annotations__:
+            self._updated.add(key)
+        return super().__setattr__(key, value)
+    
+
+class Chat(Model):
+    id: int = 0
+    uid: str = ""
+    name: str = ""
+    gmtime_created: datetime = None
+    gmtime_updated: datetime = None
+    
+    @classmethod
+    def autoincrement(cls):
+        return True
+    
+    @classmethod
+    def has_updated_datetime(cls):
+        return True
+    
+    @classmethod
+    def primary_key(cls):
+        return ["id"]
+    
+    @classmethod
+    def table_name(cls):
+        return "chats"
+    
+    @classmethod
+    def from_database(cls, item, create_instance=True):
+        if not create_instance:
+            return item
+        return Chat(**item)
+    
+    @classmethod
+    def to_database(cls, item):
+        return item.model_dump()
+    
+    
+    @classmethod
+    async def load_all(cls, database, fields=["*"]):
+        
+        """
+        Load all items
+        """
+        
+        table_name = cls.table_name()
+        items = await database.fetchall(f"""
+            SELECT {database.join_fields(fields)}
+            FROM {table_name} ORDER BY `id` DESC
+        """)
+        items = [cls.from_database(item) for item in items]
+        return items
     
     
     @classmethod
@@ -110,40 +363,6 @@ class Chat(Model):
         
         await database.execute("delete from messages where chat_id=%s", [id])
         await database.execute("delete from chats where id=%s", [id])
-    
-    
-    async def save(self):
-        
-        """
-        Save to database
-        """
-        
-        item = self.__class__.to_database(self)
-        gmtime_now = self.helper.get_current_datetime()
-        
-        if self.id == 0:
-            self.id = await self.database.insert(
-                f"""
-                INSERT INTO chats (uid, name, gmtime_created, gmtime_updated)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                [item["uid"], item["name"], gmtime_now, gmtime_now]
-            )
-        
-        else:
-            item["gmtime_updated"] = gmtime_now
-            await self.database.execute(
-                """
-                UPDATE chats
-                SET `name`=%s, `gmtime_updated`=%s,
-                WHERE `id`=%s
-                """,
-                [
-                    item["name"],
-                    item["gmtime_updated"],
-                    item["id"]
-                ]
-            )
         
     
 
@@ -206,7 +425,6 @@ class Message(Model):
     SENDER_HUMAIN: ClassVar[str] = "human"
     id: int = 0
     chat_id: int = None
-    chat: Chat = None
     sender: Literal["ai", "human"] = None
     content: list[AbstractBlock] = []
     input_tokens: int = 0
@@ -219,13 +437,28 @@ class Message(Model):
     def parse_content(cls, item):
         return create_block(item)
     
+    @classmethod
+    def autoincrement(cls):
+        return True
     
     @classmethod
-    def from_database(cls, item, chat: Index = None):
+    def has_updated_datetime(cls):
+        return True
+    
+    @classmethod
+    def primary_key(cls):
+        return ["id"]
+    
+    @classmethod
+    def table_name(cls):
+        return "messages"
+    
+    @classmethod
+    def from_database(cls, item, chat: Index = None, create_instance=True):
         item = item.copy()
         item["content"] = json_decode(item["content"])
-        if chat is not None:
-            item["chat"] = chat.get(item.get("chat_id"))
+        if not create_instance:
+            return item
         return Message(**item)
     
     
@@ -246,7 +479,6 @@ class Message(Model):
         if chat is not None:
             if not isinstance(chat, list):
                 chat = [chat]
-            chat_index = Index(chat)
         
         if chat_id is None:
             if chat is not None:
@@ -267,49 +499,8 @@ class Message(Model):
             args.append(limit)
         
         items = await database.fetchall(query, args)
-        items = [cls.from_database(item, chat=chat_index) for item in items]
+        items = [cls.from_database(item) for item in items]
         return items
-    
-    
-    async def save(self, database):
-        
-        """
-        Save to database
-        """
-        
-        item = self.__class__.to_database(self)
-        gmtime_now = self.helper.get_current_datetime()
-        
-        if self.id == 0:
-            self.id = await self.database.insert(
-                f"""
-                INSERT INTO messages (chat_id, sender, content, gmtime_created, gmtime_updated)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                [item["chat_id"], item["sender"], item["content"], gmtime_now, gmtime_now]
-            )
-        
-        else:
-            item["gmtime_updated"] = gmtime_now
-            await self.database.execute(
-                """
-                UPDATE messages
-                SET `content`=%s,
-                    `input_tokens`=%s,
-                    `output_tokens`=%s,
-                    `total_tokens`=%s,
-                    `gmtime_updated`=%s
-                WHERE `id`=%s
-                """,
-                [
-                    item["content"],
-                    item["input_tokens"],
-                    item["output_tokens"],
-                    item["total_tokens"],
-                    item["gmtime_updated"],
-                    item["id"],
-                ]
-            )
     
     
     def get_message(self):

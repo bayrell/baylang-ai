@@ -1,6 +1,6 @@
 import asyncio, time
 from helper import json_encode, json_response
-from model import Model, Chat, Message, create_block
+from model import Repository, Model, Chat, Message, create_block
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -22,14 +22,28 @@ class ChatApi:
     
     async def load(self, request: Request):
         
+        """
+        Load current chats
+        """
+        
+        # Create repository
+        repository = Repository()
+        
+        # Get chat items
         chat_items = await Chat.load_all(self.database)
+        repository.add_chat(chat_items)
+        
+        # Get messages
         chat_messages = await Message.get_by_chat_id(self.database, chat=chat_items)
-        Model.add_items(
-            key="messages",
-            items=chat_items,
-            foreign=chat_messages,
-            foreign_key="chat_id"
-        )
+        repository.add_messages(chat_messages)
+        
+        # Get result
+        chat_items = [item.model_dump() for item in chat_items]
+        for chat in chat_items:
+            messages = repository.get_messages_by_chat_id(chat.id)
+            item["messages"] = [message.model_dump() for message in messages]
+        
+        # Return result
         return json_response({
             "code": 1,
             "message": "Ok",
@@ -73,14 +87,16 @@ class ChatApi:
         if chat is None:
             
             # Create chat
-            chat_name = "Chat " + str(chat_id)
-            chat = await Chat.create(self.database, post_data.name)
+            chat = Chat(
+                name = "Chat " + str(chat_id)
+            )
+            await chat.save(self.database)
             
             # Send create chat event
             await self.client_provider.send_broadcast_message(
                 "create_chat",
                 {
-                    "chat_id": chat_id,
+                    "chat_id": chat.id,
                     "chat_uid": post_data.uid,
                     "chat_name": post_data.name,
                 }

@@ -57,27 +57,25 @@ def get_current_datetime():
 
 
 class Index:
-    def __init__(self, items, key="id"):
-        self.items = items
+    def __init__(self, key="id"):
         self.index = {}
+    
+    def extend(self, items):
         for item in items:
             value = item[key]
-            self.index[value] = item
+            if not value in self.index:
+                self.index = []
+            self.index[value].append(item)
     
-    def item(self, i):
-        if i < 0:
-            return None
-        if i >= len(self.items):
-            return None
-        return self.items[i]
-    
-    def get(self, key):
+    def getall(self, key):
         if not(key in self.index):
-            return None
+            return []
         return self.index[key]
     
-    def __len__(self):
-        return len(self.items)
+    def get(self, key):
+        result = self.getall(key)
+        return result[0] if len(result) > 0 else None
+
 
 class Helper:
     
