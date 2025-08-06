@@ -22,6 +22,10 @@ def convert_datetime(value):
 
 DateTimeType = Annotated[Optional[datetime], BeforeValidator(convert_datetime)]
 
+def is_alphanum_rule(value):
+    if not isinstance(value, str) or not value.isalnum():
+        raise ValueError("Must be contains only letters or numbers")
+    return value
 
 class Repository:
     
@@ -145,12 +149,12 @@ class Model(BaseModel):
         
         # Get where
         pk = cls.primary_key()
-        where = [database.escape_field(key) + "=%s" for key in pk.keys()]
+        where = [database.escape_field(key) + "=%s" for key in pk]
         args = cls.get_primary_list_from_data(id)
         
         # Query to database
         table_name = cls.table_name()
-        await database.execute("delete from chats where " + ",".join(where), args)
+        await database.execute(f"delete from {table_name} where " + ",".join(where), args)
     
     
     async def create(self, database):
@@ -721,4 +725,64 @@ class Message(Model):
         else:
             self.replace_last_block(block)
         
+
+class LLM(Model):
     
+    id: int = 0
+    type: str = ""
+    name: str = ""
+    content: Union[dict, None] = None
+    gmtime_created: DateTimeType = None
+    gmtime_updated: DateTimeType = None
+    
+    @classmethod
+    def autoincrement(cls):
+        return True
+    
+    @classmethod
+    def has_updated_datetime(cls):
+        return True
+    
+    @classmethod
+    def primary_key(cls):
+        return ["id"]
+    
+    @classmethod
+    def table_name(cls):
+        return "llm_settings"
+    
+    @classmethod
+    def from_database(cls, item, chat: Index = None, create_instance=True):
+        if item is None:
+            return None
+        item = item.copy()
+        item["content"] = json_decode(item["content"])
+        if not create_instance:
+            return item
+        llm_type = item.get("type")
+        if llm_type == "openai":
+            return OpenAI(**item)
+        return LLM(**item)
+    
+    @classmethod
+    def to_database(cls, item):
+        item = item.model_dump()
+        item["content"] = json_encode(item["content"], indent=None)
+        return item
+
+class OpenAIContent(BaseModel):
+    url: str = ""
+    key: str = ""
+    model: str = ""
+
+OpenAIContent_Annotation = Annotated[
+    OpenAIContent,
+    BeforeValidator(
+        lambda value: value if value is None or isinstance(value, OpenAIContent) \
+            else OpenAIContent(**value)
+    )
+]
+
+class OpenAI(LLM):
+    type: Literal["openai"] = "openai"
+    content: Union[OpenAIContent_Annotation, None] = None

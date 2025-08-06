@@ -9,6 +9,7 @@ from database import Database
 from client import Client
 from helper import Helper
 from api.chat import ChatApi
+from api.llm import LLM_Api
 
 logging.getLogger("mysql.connector").setLevel(logging.WARNING)
 #logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -75,6 +76,7 @@ class Web:
         self.starlette.add_exception_handler(404, self.not_found_page)
         self.starlette.add_route("/", self.index_page, methods=["GET"])
         self.starlette.add_route("/chat", self.index_page, methods=["GET"])
+        self.starlette.add_route("/settings/llm", self.index_page, methods=["GET"])
         self.starlette.add_route("/robots.txt", self.static("public/robots.txt"), methods=["GET"])
         self.starlette.mount("/assets", StaticFiles(directory=self.app.public_path("assets")))
         self.starlette.mount("/dist", StaticFiles(directory=self.app.public_path("dist")))
@@ -125,8 +127,11 @@ class App(Container):
         # Register logger
         self.singleton("logger", lambda: logging.getLogger("uvicorn"))
         
-        # Register providers
+        # Register api
         self.singleton("chat_api", lambda: ChatApi(self))
+        self.singleton("llm_api", lambda: LLM_Api(self))
+        
+        # Register providers
         self.singleton("client_provider", lambda: Client(self))
         self.singleton("helper", lambda: Helper())
         self.singleton("mcp", lambda: McpServer(self))

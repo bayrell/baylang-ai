@@ -125,9 +125,10 @@ class ChatPageModel
 	/**
 	 * Constructor
 	 */
-	constructor()
+	constructor(layout)
 	{
 		this.chats = [];
+		this.layout = layout;
 		this.socket = markRaw(new Socket());
 		this.current_chat_id = null;
 		this.is_loading = true;
@@ -144,7 +145,6 @@ class ChatPageModel
 	init()
 	{
 		this.socket.setModel(this);
-		this.socket.connect();
 	}
 	
 	

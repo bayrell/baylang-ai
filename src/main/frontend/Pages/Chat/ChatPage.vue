@@ -41,6 +41,7 @@ export default
 	},
 	mounted()
 	{
+		this.model.socket.connect();
 		this.model.load();
 	},
 }

@@ -6,10 +6,28 @@
 	--primary-color: #0077ee;
 	--secondary-color: #5c6370;
 	--danger-color: #e00000;
-	--success-color: #98c379;
+	--success-color: #388600;
 	--gray-color: #6b7280;
 }
 body *{ box-sizing: border-box; }
 body{
 	padding: 0; margin: 0;
+}
+.table{
+	width: auto;
+	border-collapse: collapse;
+	vertical-align: top;
+}
+.table--border{
+	border: 1px var(--border-color) solid;
+	tr{
+		border-bottom: 1px var(--border-color) solid;
+		&:last-child{
+			border-bottom-width: 0;
+		}
+	}
+	td, th{
+		text-align: left;
+		padding: 8px;
+	}
 }

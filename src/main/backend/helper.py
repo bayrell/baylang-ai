@@ -1,5 +1,6 @@
 import re, json, starlette, datetime
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
+from typing import Dict, List, Type
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -88,6 +89,43 @@ async def convert_request(request, dto):
         }, status_code=500)
     
     return response, data
+
+class Form:
+    def __init__(self, post: dict=None, schema: Type[BaseModel]=None):
+        self.data = None
+        self.post = post
+        self.schema = schema
+        self.errors: Dict[str, List[str]] = {}
+        self.is_correct = False
+    
+    @classmethod
+    async def parse_request(cls, request, schema: Type[BaseModel]=None):
+        post_data = await request.form()
+        post_data = parse_nested_content(post_data)
+        form = Form(post_data, schema)
+        form.run_validation()
+        return form
+    
+    def run_validation(self):
+        try:
+            self.data = self.schema(**self.post)
+            self.is_correct = True
+        except ValidationError as e:
+            self.is_correct = False
+            for err in e.errors():
+                field = ".".join(err["loc"])
+                message = err["msg"]
+                self.errors.setdefault(field, []).append(message)
+    
+    def get_errors(self) -> Dict[str, List[str]]:
+        return self.errors
+    
+    def get_response(self):
+        return json_response({
+            "code": -1,
+            "message": "Validation error",
+            "fields": self.errors
+        })
 
 def format_datetime(utc):
     """
