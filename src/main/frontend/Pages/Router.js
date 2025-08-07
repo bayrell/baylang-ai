@@ -1,7 +1,8 @@
+import AgentPage from "./Agent/AgentPage.vue";
 import IndexPage from "./Index/IndexPage.vue";
 import ChatPage from "./Chat/ChatPage.vue";
 import NotFoundPage from "./NotFound/NotFoundPage.vue";
-import LLM from "./Settings/LLM.vue";
+import LLM from "./LLM/LLM.vue";
 import { markRaw } from "vue";
 import { callback } from "../lib.js";
 
@@ -47,6 +48,7 @@ class Router
 	{
 		this.addRoute("/", IndexPage, "Main page");
 		this.addRoute("/chat", ChatPage, "Chat page");
+		this.addRoute("/settings/agent", AgentPage, "Agent settings");
 		this.addRoute("/settings/llm", LLM, "LLM settings");
 	}
 	

@@ -8,6 +8,7 @@ from ai import AI, Tools, McpServer
 from database import Database
 from client import Client
 from helper import Helper
+from api.agent import AgentApi
 from api.chat import ChatApi
 from api.llm import LLM_Api
 
@@ -76,6 +77,7 @@ class Web:
         self.starlette.add_exception_handler(404, self.not_found_page)
         self.starlette.add_route("/", self.index_page, methods=["GET"])
         self.starlette.add_route("/chat", self.index_page, methods=["GET"])
+        self.starlette.add_route("/settings/agent", self.index_page, methods=["GET"])
         self.starlette.add_route("/settings/llm", self.index_page, methods=["GET"])
         self.starlette.add_route("/robots.txt", self.static("public/robots.txt"), methods=["GET"])
         self.starlette.mount("/assets", StaticFiles(directory=self.app.public_path("assets")))
@@ -128,6 +130,7 @@ class App(Container):
         self.singleton("logger", lambda: logging.getLogger("uvicorn"))
         
         # Register api
+        self.singleton("agent_api", lambda: AgentApi(self))
         self.singleton("chat_api", lambda: ChatApi(self))
         self.singleton("llm_api", lambda: LLM_Api(self))
         

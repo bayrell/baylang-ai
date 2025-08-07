@@ -1,11 +1,11 @@
 <style lang="scss" scoped>
-.llm_settings{
+.agent_page{
 	max-width: 500px;
 	margin: 0 auto;
 	&__buttons{
 		margin-bottom: 10px;
 	}
-	.llm_item{
+	.table_item{
 		&__button{
 			display: flex;
 			gap: 10px;
@@ -18,52 +18,51 @@
 </style>
 
 <template>
-	<div class="llm_settings">
-		<h1>LLM List</h1>
-		<div class="llm_settings__buttons">
+    <div class="agent_page">
+        <h1>Agent page</h1>
+        <div class="agent_page__buttons">
 			<Button @click="showAdd">Add</Button>
 		</div>
-		<table class="table table--border">
+        <table class="table table--border">
 			<tbody>
 				<tr class="table__header">
 					<th></th>
+					<th>Role</th>
 					<th>Name</th>
 					<th></th>
 				</tr>
 				<tr class="table__row" v-for="item, index in items" :key="item.id">
 					<td>{{ index + 1 }}</td>
-					<td class="llm_item__title">{{ item.name }}</td>
-					<td class="llm_item__button">
+					<td class="table_item__title">{{ getRoleName(item.role) }}</td>
+					<td class="table_item__title">{{ item.name }}</td>
+					<td class="table_item__button">
 						<span @click="showEdit(item.id)">[Edit]</span>
 						<span @click="showDelete(item.id)">[Delete]</span>
 					</td>
 				</tr>
 			</tbody>
 		</table>
-		<Dialog v-model="dialog">
+        <Dialog v-model="dialog">
 			<template v-slot:header>
-				Add LLM
+				Add agent
 			</template>
 			<template v-slot:content>
 				<Field
 					name="type"
-					:error="model.form.getFieldError('item.type')"
+					:error="model.form.getFieldError('item.role')"
 				>
-					<label for="name">Type</label>
+					<label for="name">Role</label>
 					<Input
 						type="select"
 						name="type"
-						v-if="model.form.pk == null"
-						v-model="model.form.item.type"
-						:options="getTypes()"
+						v-model="model.form.item.role"
+						:options="getRoles()"
 					/>
-					<div v-else>{{ getType(model.form.item.type) }}</div>
 				</Field>
 				<Field name="name" :error="model.form.getFieldError('item.name')">
 					<label for="name">Name</label>
 					<Input name="name" v-model="model.form.item.name" />
 				</Field>
-				<FieldContent />
 				<Result v-model="model.form.result" />
 			</template>
 			<template v-slot:buttons>
@@ -85,7 +84,7 @@
 				<Button class="default" @click="remove_dialog.hide()">Close</Button>
 			</template>
 		</Dialog>
-	</div>
+    </div>
 </template>
 
 <script lang="js">
@@ -95,20 +94,17 @@ import Input from "@main/Components/Input.vue";
 import Dialog from "@main/Components/Dialog/Dialog.vue";
 import DialogModel from "@main/Components/Dialog/DialogModel.js";
 import Result from "@main/Components/Form/Result.vue";
-import FieldContent from "./FieldContent.vue";
 
-export default
-{
-	name: "LLM",
-	components: {
+export default {
+    name: "AgentPage",
+    components: {
 		Button,
 		Field,
-		FieldContent,
 		Input,
 		Dialog,
 		Result,
 	},
-	data: function(){
+    data: function(){
 		return {
 			dialog: new DialogModel(),
 			remove_dialog: new DialogModel(),
@@ -118,7 +114,7 @@ export default
 	{
 		model: function()
 		{
-			return this.layout.llm;
+			return this.layout.agent_page;
 		},
 		items: function()
 		{
@@ -131,23 +127,29 @@ export default
 	},
 	methods:
 	{
-		getTypes()
+		getRoles()
 		{
 			return [
-				{"key": "openai", "value": "Open AI"},
+				{"key": "consultant", "value": "Consultant"},
+				{"key": "coder", "value": "Coder"},
 			];
 		},
-		getType(key)
-		{
-			var arr = this.getTypes();
-			var item = arr.find((item) => item.key == key);
-			return item.value;
-		},
+        getRole(role)
+        {
+            var roles = this.getRoles();
+            return roles.find((item) => item.key == role);
+        },
+        getRoleName(role)
+        {
+            var item = this.getRole(role);
+            if (!item) return "";
+            return item.value;
+        },
 		showAdd()
 		{
 			this.model.form.clear();
 			this.model.form.setItem({
-				"type": "",
+				"role": "",
 				"name": "",
 			});
 			this.dialog.show();

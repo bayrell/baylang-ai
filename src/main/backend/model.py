@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
-from datetime import datetime
-from helper import Index, json_encode, json_decode, get_current_datetime, get_datetime_from_utc
+from helper import Index, DateTimeType, \
+    json_encode, json_decode, get_current_datetime, get_datetime_from_utc
 from langchain.agents.output_parsers.tools import ToolAgentAction
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from langchain_core.messages.ai import UsageMetadata
@@ -9,23 +9,6 @@ from pydantic import BaseModel, Field, ConfigDict, validator
 from pydantic.functional_validators import BeforeValidator
 from typing import Annotated, ClassVar, Literal, List, Optional, Union
 
-
-def convert_datetime(value):
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, str):
-        value = value.strip()
-        if value == "" or value == "0000-00-00 00:00:00":
-            return None
-        return get_datetime_from_utc(value)
-    return None
-
-DateTimeType = Annotated[Optional[datetime], BeforeValidator(convert_datetime)]
-
-def is_alphanum_rule(value):
-    if not isinstance(value, str) or not value.isalnum():
-        raise ValueError("Must be contains only letters or numbers")
-    return value
 
 class Repository:
     
@@ -744,10 +727,10 @@ class LLM(Model):
     
     @classmethod
     def table_name(cls):
-        return "llm_settings"
+        return "llm"
     
     @classmethod
-    def from_database(cls, item, chat: Index = None, create_instance=True):
+    def from_database(cls, item, create_instance=True):
         if item is None:
             return None
         item = item.copy()
@@ -781,3 +764,42 @@ OpenAIContent_Annotation = Annotated[
 class OpenAI(LLM):
     type: Literal["openai"] = "openai"
     content: Union[OpenAIContent_Annotation, None] = None
+
+
+class Agent(Model):
+    
+    id: int = 0
+    role: str = ""
+    name: str = ""
+    gmtime_created: DateTimeType = None
+    gmtime_updated: DateTimeType = None
+    
+    @classmethod
+    def autoincrement(cls):
+        return True
+    
+    @classmethod
+    def has_updated_datetime(cls):
+        return True
+    
+    @classmethod
+    def primary_key(cls):
+        return ["id"]
+    
+    @classmethod
+    def table_name(cls):
+        return "agent"
+    
+    @classmethod
+    def from_database(cls, item, create_instance=True):
+        if item is None:
+            return None
+        item = item.copy()
+        if not create_instance:
+            return item
+        return Agent(**item)
+    
+    @classmethod
+    def to_database(cls, item):
+        item = item.model_dump()
+        return item

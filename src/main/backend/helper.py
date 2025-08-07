@@ -1,6 +1,7 @@
 import re, json, starlette, datetime
 from pydantic import BaseModel, ValidationError
-from typing import Dict, List, Type
+from pydantic.functional_validators import BeforeValidator
+from typing import Annotated, Dict, List, Optional, Type
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -31,6 +32,23 @@ def json_decode(content, default=None):
 def json_response(value, status_code=200):
     response = JSONResponse(value, status_code=status_code)
     return response
+
+def convert_datetime(value):
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, str):
+        value = value.strip()
+        if value == "" or value == "0000-00-00 00:00:00":
+            return None
+        return get_datetime_from_utc(value)
+    return None
+
+DateTimeType = Annotated[Optional[datetime.datetime], BeforeValidator(convert_datetime)]
+
+def is_alphanum_rule(value):
+    if not isinstance(value, str) or not value.isalnum():
+        raise ValueError("Must be contains only letters or numbers")
+    return value
 
 def parse_nested_content(form_data):
     

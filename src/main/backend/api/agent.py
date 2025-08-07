@@ -1,27 +1,27 @@
 import asyncio, time
-from helper import json_encode, json_response, convert_request, Form
-from model import LLM, OpenAI, OpenAIContent_Annotation
-from pydantic import BaseModel, validator
+from helper import Form, json_response, is_alphanum_rule
+from model import Agent
+from pydantic import BaseModel
 from pydantic.functional_validators import AfterValidator
 from starlette.requests import Request
 from typing import Annotated, Literal, Union
 
 
-class LLM_Api:
+class AgentApi:
     
     def __init__(self, app):
         self.app = app
         self.database = app.get("database")
         self.starlette = app.get("starlette")
-        self.starlette.add_route("/api/settings/llm", self.index, methods=["POST"])
-        self.starlette.add_route("/api/settings/llm/save", self.save, methods=["POST"])
-        self.starlette.add_route("/api/settings/llm/delete", self.delete, methods=["POST"])
+        self.starlette.add_route("/api/settings/agent", self.index, methods=["POST"])
+        self.starlette.add_route("/api/settings/agent/save", self.save, methods=["POST"])
+        self.starlette.add_route("/api/settings/agent/delete", self.delete, methods=["POST"])
     
     
     async def index(self, request: Request):
         
         # Build query
-        table_name = LLM.table_name()
+        table_name = Agent.table_name()
         query = f"""
             SELECT *
             FROM {table_name}
@@ -30,7 +30,7 @@ class LLM_Api:
         
         # Fetch from database
         items = await self.database.fetchall(query, params)
-        items = [LLM.from_database(item) for item in items]
+        items = [Agent.from_database(item) for item in items]
         items = [item.model_dump() for item in items]
         
         # Return result
@@ -50,9 +50,8 @@ class LLM_Api:
         """
         
         class Item(BaseModel):
-            type: Literal["openai"]
+            role: str
             name: Annotated[str, AfterValidator(is_alphanum_rule)]
-            content: Union[OpenAIContent_Annotation, None] = None
         
         class DTO(BaseModel):
             id: int = 0
@@ -65,11 +64,11 @@ class LLM_Api:
         
         # Create item
         if form.data.id > 0:
-            item = await LLM.get_by_id(self.database, form.data.id)
+            item = await Agent.get_by_id(self.database, form.data.id)
+            item.role = form.data.item.role
             item.name = form.data.item.name
-            item.content = form.data.item.content
         else:
-            item = OpenAI(**form.data.item.model_dump())
+            item = Agent(**form.data.item.model_dump())
         
         if item is None:
             return json_response({
@@ -105,14 +104,14 @@ class LLM_Api:
             return form.get_response()
         
         # Find item
-        item = await LLM.get_by_id(self.database, form.data.id)
+        item = await Agent.get_by_id(self.database, form.data.id)
         if item is None:
             return json_response({
                 "code": -1,
                 "message": "Item not found",
             })
         
-        await LLM.delete(self.database, form.data.id)
+        await Agent.delete(self.database, form.data.id)
         
         # Return result
         return json_response({
@@ -122,4 +121,3 @@ class LLM_Api:
                 "id": item.id,
             }
         })
-        

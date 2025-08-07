@@ -27,7 +27,7 @@ export default {
 	computed: {
 		model()
 		{
-			return this.layout.llm;
+			return this.layout.llm_page;
 		},
 		item()
 		{
