@@ -1,5 +1,5 @@
 import asyncio, time
-from helper import Form, json_response, is_alphanum_rule
+from helper import Form, json_response, is_name_rule
 from model import Agent
 from pydantic import BaseModel
 from pydantic.functional_validators import AfterValidator
@@ -51,7 +51,9 @@ class AgentApi:
         
         class Item(BaseModel):
             role: str
-            name: Annotated[str, AfterValidator(is_alphanum_rule)]
+            llm_id: int
+            prompt: str
+            name: Annotated[str, AfterValidator(is_name_rule)]
         
         class DTO(BaseModel):
             id: int = 0
@@ -66,6 +68,8 @@ class AgentApi:
         if form.data.id > 0:
             item = await Agent.get_by_id(self.database, form.data.id)
             item.role = form.data.item.role
+            item.llm_id = form.data.item.llm_id
+            item.prompt = form.data.item.prompt
             item.name = form.data.item.name
         else:
             item = Agent(**form.data.item.model_dump())

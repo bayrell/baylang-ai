@@ -12,6 +12,9 @@
 			<Link href="/">Main page</Link>
 		</div>
 		<div class="index_page__item">
+			<Link href="/settings/agent">Agent page</Link>
+		</div>
+		<div class="index_page__item">
 			<Link href="/settings/llm">LLM page</Link>
 		</div>
 		<div class="index_page__item">

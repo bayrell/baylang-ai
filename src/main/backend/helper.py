@@ -46,8 +46,21 @@ def convert_datetime(value):
 DateTimeType = Annotated[Optional[datetime.datetime], BeforeValidator(convert_datetime)]
 
 def is_alphanum_rule(value):
-    if not isinstance(value, str) or not value.isalnum():
+    if not isinstance(value, str):
+        raise ValueError("Value must be string")
+    
+    if not value.isalnum():
         raise ValueError("Must be contains only letters or numbers")
+    
+    return value
+
+def is_name_rule(value):
+    if not isinstance(value, str):
+        raise ValueError("Value must be string")
+    
+    if not re.fullmatch(r"[a-zA-Zа-яА-ЯёЁ0-9 _-]+", value):
+        raise ValueError("Only letters, numbers, space, underscore and hyphen are allowed")
+    
     return value
 
 def parse_nested_content(form_data):

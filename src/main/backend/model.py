@@ -771,6 +771,8 @@ class Agent(Model):
     id: int = 0
     role: str = ""
     name: str = ""
+    prompt: str = ""
+    llm_id: Union[int, None] = None
     gmtime_created: DateTimeType = None
     gmtime_updated: DateTimeType = None
     

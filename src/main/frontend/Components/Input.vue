@@ -7,6 +7,9 @@
 	outline: 0;
 	width: 100%;
 }
+textarea.input{
+	min-height: 150px;
+}
 </style>
 
 <template>

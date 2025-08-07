@@ -7,6 +7,7 @@ class AgentPageModel
 	{
 		this.layout = layout;
 		this.items = [];
+		this.llm = [];
 		this.form = new FormModel();
 	}
 	
@@ -29,6 +30,15 @@ class AgentPageModel
 	
 	
 	/**
+	 * Find LLM by id
+	 */
+	findLanguageModelById(id)
+	{
+		return this.llm.find((item) => item.id == id);
+	}
+	
+	
+	/**
 	 * Load data
 	 */
 	async load()
@@ -40,6 +50,22 @@ class AgentPageModel
 		if (result.isSuccess())
 		{
 			this.items = result.data.items;
+		}
+	}
+	
+	
+	/**
+	 * Load llm
+	 */
+	async loadLanguageModels()
+	{
+		this.llm = [];
+		var result = await sendApi(
+			"/api/settings/llm",
+		);
+		if (result.isSuccess())
+		{
+			this.llm = result.data.items;
 		}
 	}
 	

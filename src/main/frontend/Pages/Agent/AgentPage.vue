@@ -18,23 +18,25 @@
 </style>
 
 <template>
-    <div class="agent_page">
-        <h1>Agent page</h1>
-        <div class="agent_page__buttons">
+	<div class="agent_page">
+		<h1>Agent page</h1>
+		<div class="agent_page__buttons">
 			<Button @click="showAdd">Add</Button>
 		</div>
-        <table class="table table--border">
+		<table class="table table--border">
 			<tbody>
 				<tr class="table__header">
 					<th></th>
 					<th>Role</th>
 					<th>Name</th>
+					<th>LLM</th>
 					<th></th>
 				</tr>
 				<tr class="table__row" v-for="item, index in items" :key="item.id">
 					<td>{{ index + 1 }}</td>
-					<td class="table_item__title">{{ getRoleName(item.role) }}</td>
 					<td class="table_item__title">{{ item.name }}</td>
+					<td class="table_item__title">{{ getRoleName(item.role) }}</td>
+					<td class="table_item__title">{{ getLanguageModelName(item.llm_id) }}</td>
 					<td class="table_item__button">
 						<span @click="showEdit(item.id)">[Edit]</span>
 						<span @click="showDelete(item.id)">[Delete]</span>
@@ -42,11 +44,15 @@
 				</tr>
 			</tbody>
 		</table>
-        <Dialog v-model="dialog">
+		<Dialog v-model="dialog">
 			<template v-slot:header>
 				Add agent
 			</template>
 			<template v-slot:content>
+				<Field name="name" :error="model.form.getFieldError('item.name')">
+					<label for="name">Name</label>
+					<Input name="name" v-model="model.form.item.name" />
+				</Field>
 				<Field
 					name="type"
 					:error="model.form.getFieldError('item.role')"
@@ -59,9 +65,24 @@
 						:options="getRoles()"
 					/>
 				</Field>
-				<Field name="name" :error="model.form.getFieldError('item.name')">
-					<label for="name">Name</label>
-					<Input name="name" v-model="model.form.item.name" />
+				<Field
+					name="llm_id"
+					:error="model.form.getFieldError('item.llm_id')"
+				>
+					<label for="name">Language model</label>
+					<Input
+						type="select"
+						name="type"
+						v-model="model.form.item.llm_id"
+						:options="getLanguageModels()"
+					/>
+				</Field>
+				<Field
+					name="prompt"
+					:error="model.form.getFieldError('item.prompt')"
+				>
+					<label for="name">Промпт</label>
+					<Input type="textarea" name="prompt" v-model="model.form.item.prompt" />
 				</Field>
 				<Result v-model="model.form.result" />
 			</template>
@@ -84,7 +105,7 @@
 				<Button class="default" @click="remove_dialog.hide()">Close</Button>
 			</template>
 		</Dialog>
-    </div>
+	</div>
 </template>
 
 <script lang="js">
@@ -96,15 +117,15 @@ import DialogModel from "@main/Components/Dialog/DialogModel.js";
 import Result from "@main/Components/Form/Result.vue";
 
 export default {
-    name: "AgentPage",
-    components: {
+	name: "AgentPage",
+	components: {
 		Button,
 		Field,
 		Input,
 		Dialog,
 		Result,
 	},
-    data: function(){
+	data: function(){
 		return {
 			dialog: new DialogModel(),
 			remove_dialog: new DialogModel(),
@@ -124,6 +145,7 @@ export default {
 	mounted()
 	{
 		this.model.load();
+		this.model.loadLanguageModels();
 	},
 	methods:
 	{
@@ -134,17 +156,35 @@ export default {
 				{"key": "coder", "value": "Coder"},
 			];
 		},
-        getRole(role)
-        {
-            var roles = this.getRoles();
-            return roles.find((item) => item.key == role);
-        },
-        getRoleName(role)
-        {
-            var item = this.getRole(role);
-            if (!item) return "";
-            return item.value;
-        },
+		getRole(role)
+		{
+			var roles = this.getRoles();
+			return roles.find((item) => item.key == role);
+		},
+		getRoleName(role)
+		{
+			var item = this.getRole(role);
+			if (!item) return "";
+			return item.value;
+		},
+		getLanguageModels()
+		{
+			var items = this.model.llm;
+			return items.map(
+				(item) => {
+					return {
+						"key": item.id,
+						"value": item.name,
+					};
+				}
+			);
+		},
+		getLanguageModelName(llm_id)
+		{
+			var llm = this.model.findLanguageModelById(llm_id);
+			if (!llm) return "";
+			return llm.name;
+		},
 		showAdd()
 		{
 			this.model.form.clear();
