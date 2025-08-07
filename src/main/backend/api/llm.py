@@ -1,11 +1,11 @@
 import asyncio, time
 from helper import json_encode, json_response, convert_request, Form
-from model import LLM, OpenAI, is_alphanum_rule
+from model import LLM, OpenAI, OpenAIContent_Annotation, is_alphanum_rule
 from pydantic import BaseModel, validator
 from pydantic.functional_validators import AfterValidator
 from starlette.requests import Request
 from starlette.websockets import WebSocket, WebSocketDisconnect
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Union
 
 class LLM_Api:
     
@@ -52,6 +52,7 @@ class LLM_Api:
         class Item(BaseModel):
             type: Literal["openai"]
             name: Annotated[str, AfterValidator(is_alphanum_rule)]
+            content: Union[OpenAIContent_Annotation, None] = None
         
         class DTO(BaseModel):
             id: int = 0
@@ -66,6 +67,7 @@ class LLM_Api:
         if form.data.id > 0:
             item = await LLM.get_by_id(self.database, form.data.id)
             item.name = form.data.item.name
+            item.content = form.data.item.content
         else:
             item = OpenAI(**form.data.item.model_dump())
         
@@ -89,6 +91,10 @@ class LLM_Api:
     
     
     async def delete(self, request: Request):
+        
+        """
+        Delete item
+        """
         
         class DTO(BaseModel):
             id: int = 0

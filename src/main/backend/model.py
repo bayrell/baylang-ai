@@ -222,17 +222,12 @@ class Model(BaseModel):
         
         # Get updated fields
         updated = self.updated()
-        for key in updated:
-            if key in item:
-                del item[key]
-        
-        keys = item.keys()
-        values = [database.escape_field(key) + "=%s" for key in keys]
+        values = [database.escape_field(key) + "=%s" for key in updated]
         
         pk_keys = self._old_pk.keys()
         pk_values = [database.escape_field(key) + "=%s" for key in pk_keys]
         
-        args = [item[key] for key in keys]
+        args = [item[key] if key in item else None for key in updated]
         args.extend([self._old_pk[key] for key in pk_keys])
         query = f"""
             UPDATE {table_name}
@@ -318,7 +313,7 @@ class Model(BaseModel):
     
     
     def __setattr__(self, key, value):
-        if key in self.__annotations__:
+        if key in self.model_fields:
             self._updated.add(key)
         return super().__setattr__(key, value)
     

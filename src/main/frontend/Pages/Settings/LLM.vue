@@ -48,20 +48,22 @@
 				<Field
 					name="type"
 					:error="model.form.getFieldError('item.type')"
-					v-if="model.form.pk == null"
 				>
 					<label for="name">Type</label>
 					<Input
 						type="select"
 						name="type"
+						v-if="model.form.pk == null"
 						v-model="model.form.item.type"
 						:options="getTypes()"
 					/>
+					<div v-else>{{ getType(model.form.item.type) }}</div>
 				</Field>
 				<Field name="name" :error="model.form.getFieldError('item.name')">
 					<label for="name">Name</label>
 					<Input name="name" v-model="model.form.item.name" />
 				</Field>
+				<FieldContent />
 				<Result v-model="model.form.result" />
 			</template>
 			<template v-slot:buttons>
@@ -93,6 +95,7 @@ import Input from "@main/Components/Input.vue";
 import Dialog from "@main/Components/Dialog/Dialog.vue";
 import DialogModel from "@main/Components/Dialog/DialogModel.js";
 import Result from "@main/Components/Form/Result.vue";
+import FieldContent from "./FieldContent.vue";
 
 export default
 {
@@ -100,6 +103,7 @@ export default
 	components: {
 		Button,
 		Field,
+		FieldContent,
 		Input,
 		Dialog,
 		Result,
@@ -132,6 +136,12 @@ export default
 			return [
 				{"key": "openai", "value": "Open AI"},
 			];
+		},
+		getType(key)
+		{
+			var arr = this.getTypes();
+			var item = arr.find((item) => item.key == key);
+			return item.value;
 		},
 		showAdd()
 		{
