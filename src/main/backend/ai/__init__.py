@@ -1,9 +1,9 @@
 from mcp.server.fastmcp import FastMCP
 from starlette.routing import Mount
 from .question import Builder, Question
-from .agent import AgentHelper, AI
+from .agent import AgentRole, AI
 
-__all__ = ("Builder", "Question", "AgentHelper", "AI")
+__all__ = ("Builder", "Question", "AgentRole", "AI")
 
 
 # Определим функции

@@ -27,8 +27,8 @@
 			<tbody>
 				<tr class="table__header">
 					<th></th>
-					<th>Role</th>
 					<th>Name</th>
+					<th>Role</th>
 					<th>LLM</th>
 					<th></th>
 				</tr>
@@ -152,8 +152,7 @@ export default {
 		getRoles()
 		{
 			return [
-				{"key": "consultant", "value": "Consultant"},
-				{"key": "coder", "value": "Coder"},
+				{"key": "default", "value": "Default"},
 			];
 		},
 		getRole(role)

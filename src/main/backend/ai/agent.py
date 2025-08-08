@@ -5,7 +5,7 @@ from model import Agent, Chat, Message, AbstractBlock
 from .question import Question
 
 
-class AgentHelper:
+class AgentRole:
     
     def __init__(self, app, llm, question):
         self.app = app
@@ -222,6 +222,7 @@ class AI:
         self.question = None
         self.message_ai = None
         self.message_human = None
+        self.role = None
         self.chat = None
         self.content = []
     
@@ -350,8 +351,8 @@ class AI:
         
         try:
             # Отправить запрос в LLM
-            self.helper = AgentHelper(self.app, self.agent.factory(), self.question)
-            await self.helper.send()
+            self.role = AgentRole(self.app, self.agent.factory(), self.question)
+            await self.role.send()
             
             # Save messages to database
             await self.message_human.save(self.database)
