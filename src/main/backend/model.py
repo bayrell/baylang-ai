@@ -171,7 +171,7 @@ class BlockCode(AbstractBlock):
         return "```" + self.language + "\n" + self.content + "\n" + "```"
     
     def trim(self):
-        lines = self.content.split()
+        lines = self.content.split("\n")
         if len(lines) > 1:
             if lines[0][0:3] == "```":
                 lines = lines[1:]
