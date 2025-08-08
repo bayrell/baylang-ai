@@ -1,3 +1,4 @@
+import asyncio
 from starlette.websockets import WebSocketDisconnect
 from helper import json_encode
 
@@ -10,6 +11,7 @@ class Client:
         
         # Подключенные клиенты
         self.connected_clients = set()
+        self.lock = asyncio.Lock()
     
     
     def add(self, websocket):
@@ -17,7 +19,7 @@ class Client:
     
     
     def remove(self, websocket):
-        self.connected_clients.remove(websocket)
+        self.connected_clients.discard(websocket)
     
     
     async def send_broadcast_message(self, event: str, message: dict):
@@ -26,8 +28,13 @@ class Client:
         Отправить сообщение всем клиентам
         """
         
+        connected_clients = []
         disconnected_clients = []
-        for websocket in self.connected_clients:
+        
+        async with self.lock:
+            connected_clients = list(self.connected_clients)
+        
+        for websocket in connected_clients:
             try:
                 await websocket.send_text(json_encode({
                     "event": event,
@@ -36,5 +43,6 @@ class Client:
             except WebSocketDisconnect:
                 self.disconnected_clients.add(websocket)
         
-        for websocket in disconnected_clients:
-            self.connected_clients.remove(websocket)
+        async with self.lock:
+            for websocket in disconnected_clients:
+                self.connected_clients.discard(websocket)

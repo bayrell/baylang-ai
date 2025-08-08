@@ -43,6 +43,7 @@ export default
 	{
 		this.model.socket.connect();
 		this.model.load();
+		this.model.loadAgents();
 	},
 }
 </script>

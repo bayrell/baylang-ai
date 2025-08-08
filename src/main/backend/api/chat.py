@@ -1,6 +1,6 @@
 import asyncio, time
 from helper import json_encode, json_response, convert_request
-from model import Repository, Model, Chat, Message, AbstractBlock, AbstractBlockList
+from model import Repository, Agent, AbstractBlock, AbstractBlockList, Model, Chat, Message
 from pydantic import BaseModel, validator
 from starlette.requests import Request
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -62,6 +62,7 @@ class ChatApi:
         
         class DTO(BaseModel):
             id: str
+            agent: int
             name: str = ""
             content: AbstractBlockList
         
@@ -79,6 +80,14 @@ class ChatApi:
             return json_response({
                 "code": -1,
                 "message": "chat_id is None",
+            })
+        
+        # Get agent
+        agent = await Agent.get_by_id(self.database, post_data.agent)
+        if not agent:
+            return json_response({
+                "code": -1,
+                "message": "Agent not found",
             })
         
         # Find chat by id
@@ -110,7 +119,13 @@ class ChatApi:
         
         # Send message to LLM
         ai = self.app.get("ai")
-        _, message_ai = await ai.send_question(chat, post_data.content, create_async_task=True)
+        ai.set_agent(agent)
+        ai.set_chat(chat)
+        ai.set_content(post_data.content)
+        await ai.load()
+        
+        # Send message
+        ai.create_send_task()
         
         # Response
         return json_response({
@@ -118,7 +133,7 @@ class ChatApi:
             "message": "Ok",
             "data": {
                 "chat_id": chat.uid,
-                "answer": message_ai.model_dump(),
+                "answer": ai.message_ai.model_dump(),
             },
         })
     

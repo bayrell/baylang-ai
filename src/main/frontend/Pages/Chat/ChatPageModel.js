@@ -127,6 +127,7 @@ class ChatPageModel
 	 */
 	constructor(layout)
 	{
+		this.agents = [];
 		this.chats = [];
 		this.layout = layout;
 		this.socket = markRaw(new Socket());
@@ -321,7 +322,7 @@ class ChatPageModel
 	/**
 	 * Send message
 	 */
-	async sendMessage(chat_id, message)
+	async sendMessage(chat_id, current_agent_id, message)
 	{
 		/* Find chat by id */
 		var chat = this.findChatById(chat_id);
@@ -345,6 +346,7 @@ class ChatPageModel
 		/* Send api */
 		await sendApi("/api/chat/send", {
 			id: chat.id,
+			agent: current_agent_id,
 			name: chat.title,
 			content: item.content,
 		});
@@ -368,6 +370,22 @@ class ChatPageModel
 				history.assign(item);
 				this.chats.push(history);
 			}
+		}
+	}
+	
+	
+	/**
+	 * Load agents
+	 */
+	async loadAgents()
+	{
+		this.agents = [];
+		var result = await sendApi(
+			"/api/settings/agent",
+		);
+		if (result.isSuccess())
+		{
+			this.agents = result.data.items;
 		}
 	}
 }

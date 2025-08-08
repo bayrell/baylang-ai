@@ -29,7 +29,7 @@ textarea.input{
 		:class="getInputClass()"
 		@input="$emit('update:modelValue', $event.target.value)"
 	>
-		<option value="">Select value</option>
+		<option value="">{{ selectMessage }}</option>
 		<option
 			v-for="option in options"
 			:key="option.key"
@@ -65,6 +65,10 @@ export default {
 		modelValue: {
 			type: [String, Number],
 			default: "",
+		},
+		selectMessage: {
+			type: String,
+			default: "Select value",
 		},
 	},
 	emits: ["update:modelValue"],

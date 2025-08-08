@@ -4,7 +4,7 @@ from starlette.applications import Starlette
 from starlette.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 from starlette.routing import Route, Mount
-from ai import AI, Tools, McpServer
+from ai import AI
 from database import Database
 from client import Client
 from helper import Helper
@@ -110,11 +110,7 @@ class App(Container):
         self.singleton("starlette", lambda: Starlette())
         
         # Register AI
-        def register_ai():
-            ai = AI(self)
-            ai.init_llm()
-            return ai
-        self.singleton("ai", register_ai)
+        self.register("ai", lambda: AI(self))
         
         # Register database
         def create_database():
@@ -137,8 +133,8 @@ class App(Container):
         # Register providers
         self.singleton("client_provider", lambda: Client(self))
         self.singleton("helper", lambda: Helper())
-        self.singleton("mcp", lambda: McpServer(self))
-        self.singleton("tools", lambda: Tools(self))
+        #self.singleton("mcp", lambda: McpServer(self))
+        #self.singleton("tools", lambda: Tools(self))
         self.singleton("web", lambda: Web(self))
     
     def path(self, *args):

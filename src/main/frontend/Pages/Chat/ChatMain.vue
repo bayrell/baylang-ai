@@ -12,6 +12,13 @@
 		overflow-y: auto;
 		padding-right: 10px;
 	}
+	&__tools{
+		display: flex;
+		margin-bottom: 10px;
+	}
+	&__tools :deep(.input){
+		width: 200px;
+	}
 	&__send_message{
 		display: flex;
 		height: 75px;
@@ -26,6 +33,7 @@
 		border-right-width: 0;
 		border-top-right-radius: 0px;
 		border-bottom-right-radius: 0px;
+		min-height: auto;
 	}
 }
 .chat_main :deep(.chat_typing){
@@ -43,6 +51,15 @@
 				@update="scrollHistory"
 			/>
 			<ChatTyping v-if="currentItem && currentItem.isTyping()" />
+		</div>
+		<div class="chat_main__tools">
+			<Input
+				name="agent"
+				type="select"
+				v-model="current_agent"
+				selectMessage="Select agent"
+				:options="getAgents()"
+			/>
 		</div>
 		<div class="chat_main__send_message">
 			<Input type="textarea" name="message" v-model="message" />
@@ -70,6 +87,7 @@ export default {
 	{
 		return {
 			message: "",
+			current_agent: "",
 		};
 	},
 	computed:
@@ -89,6 +107,15 @@ export default {
 	},
 	methods:
 	{
+		getAgents()
+		{
+			return this.model.agents.map((item)=>{
+				return {
+					"key": item.id,
+					"value": item.name,
+				};
+			});
+		},
 		scrollHistory()
 		{
 			this.$nextTick(() => {
@@ -110,7 +137,7 @@ export default {
 		},
 		sendMessage()
 		{
-			this.model.sendMessage(this.model.current_chat_id, this.message);
+			this.model.sendMessage(this.model.current_chat_id, this.current_agent, this.message);
 			this.message = "";
 		},
 	},
