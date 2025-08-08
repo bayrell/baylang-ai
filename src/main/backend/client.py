@@ -14,12 +14,14 @@ class Client:
         self.lock = asyncio.Lock()
     
     
-    def add(self, websocket):
-        self.connected_clients.add(websocket)
+    async def add(self, websocket):
+        async with self.lock:
+            self.connected_clients.add(websocket)
     
     
-    def remove(self, websocket):
-        self.connected_clients.discard(websocket)
+    async def remove(self, websocket):
+        async with self.lock:
+            self.connected_clients.discard(websocket)
     
     
     async def send_broadcast_message(self, event: str, message: dict):
@@ -41,8 +43,4 @@ class Client:
                     "message": message,
                 }))
             except WebSocketDisconnect:
-                self.disconnected_clients.add(websocket)
-        
-        async with self.lock:
-            for websocket in disconnected_clients:
-                self.connected_clients.discard(websocket)
+                await self.remove(websocket)

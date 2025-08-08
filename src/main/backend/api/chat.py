@@ -203,7 +203,7 @@ class ChatApi:
         
         # Accept connection
         await websocket.accept()
-        client_provider.add(websocket)
+        await client_provider.add(websocket)
         
         # Listen socket
         try:
@@ -218,7 +218,7 @@ class ChatApi:
                 await websocket.receive_text()
         
         except WebSocketDisconnect:
-            client_provider.remove(websocket)
+            await client_provider.remove(websocket)
         
         except Exception as e:
             self.app.exception(f"WebSocket error: {e}")

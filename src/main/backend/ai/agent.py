@@ -276,7 +276,7 @@ class AI:
         await self.agent.bind_llm(self.database)
         
     
-    async def create_send_task(self):
+    def create_send_task(self):
         
         """
         Send content to LLM and save in database
