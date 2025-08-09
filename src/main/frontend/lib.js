@@ -1,8 +1,16 @@
+/**
+ * Apply function with arguments
+ */
 export function apply(object, method_name, args)
 {
 	var method = object[method_name].bind(object);
 	return method.apply(null, args);
 }
+
+
+/**
+ * Returns callback of function
+ */
 export function callback(object, method){
 	return (...args) =>
 	{
@@ -11,6 +19,18 @@ export function callback(object, method){
 }
 
 
+/**
+ * Returns true if value is string
+ */
+export function isString(value)
+{
+	return typeof value == "string" || value instanceof String;
+}
+
+
+/**
+ * Api result
+ */
 export class ApiResult
 {
 	code = 0;
@@ -27,7 +47,7 @@ export class ApiResult
 		this.response = response;
 		this.code = response.code;
 		this.message = response.message;
-		this.data = response.data;
+		this.data = response.data || {};
 	}
 	
 	

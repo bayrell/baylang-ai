@@ -1,4 +1,4 @@
-import re, json, starlette, datetime
+import re, json, starlette, datetime, aiohttp
 from pydantic import BaseModel, ValidationError
 from pydantic.functional_validators import BeforeValidator
 from typing import Annotated, Dict, List, Optional, Type
@@ -11,6 +11,7 @@ class JSONEncoder(json.JSONEncoder):
 
 class JSONResponse(starlette.responses.JSONResponse):
     def render(self, content) -> bytes:
+        self.content = content
         return json.dumps(
             content,
             cls=JSONEncoder,
@@ -181,6 +182,13 @@ def get_current_datetime():
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     formatted_time = utc_now.strftime("%Y-%m-%d %H:%M:%S")
     return formatted_time
+
+
+async def fetch_json(url):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            result = await response.json()
+            return result
 
 
 class Index:

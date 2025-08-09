@@ -82,6 +82,27 @@ class LLM
 		}
 		return result;
 	}
+	
+	
+	/**
+	 * Reload models
+	 */
+	async reloadModels()
+	{
+		var result = await sendApi(
+			"/api/settings/llm/get_models",
+			{
+				"id": this.form.item.id,
+				"item": this.form.item,
+			}
+		);
+		
+		if (result.isSuccess())
+		{
+			this.form.item.content.models = result.data.items;
+		}
+		return result;
+	}
 }
 
 export default LLM;

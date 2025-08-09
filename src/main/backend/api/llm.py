@@ -1,5 +1,5 @@
 import asyncio, time
-from helper import json_encode, json_response, convert_request, Form
+from helper import is_alphanum_rule, json_encode, json_response, convert_request, Form
 from model import LLM, OpenAI, OpenAIContent_Annotation
 from pydantic import BaseModel, validator
 from pydantic.functional_validators import AfterValidator
@@ -16,6 +16,7 @@ class LLM_Api:
         self.starlette.add_route("/api/settings/llm", self.index, methods=["POST"])
         self.starlette.add_route("/api/settings/llm/save", self.save, methods=["POST"])
         self.starlette.add_route("/api/settings/llm/delete", self.delete, methods=["POST"])
+        self.starlette.add_route("/api/settings/llm/get_models", self.get_models, methods=["POST"])
     
     
     async def index(self, request: Request):
@@ -50,9 +51,9 @@ class LLM_Api:
         """
         
         class Item(BaseModel):
-            type: Literal["openai"]
+            type: Literal["ollama", "openai"]
             name: Annotated[str, AfterValidator(is_alphanum_rule)]
-            content: Union[OpenAIContent_Annotation, None] = None
+            content: dict = None
         
         class DTO(BaseModel):
             id: int = 0
@@ -122,4 +123,48 @@ class LLM_Api:
                 "id": item.id,
             }
         })
+    
+    
+    async def get_models(self, request: Request):
         
+        """
+        Returns models
+        """
+        
+        # Save form
+        response = await self.save(request)
+        if response.content["code"] < 0:
+            return json_response({
+                "code": -1,
+                "message": "Form error",
+                "form": response.content,
+            })
+        
+        class DTO(BaseModel):
+            id: int = 0
+        
+        # Validate form
+        form = await Form.parse_request(request, DTO)
+        if not form.is_correct:
+            return form.get_response()
+        
+        # Find item
+        item = await LLM.get_by_id(self.database, form.data.id)
+        if item is None:
+            return json_response({
+                "code": -1,
+                "message": "Item not found",
+            })
+        
+        # Reload models
+        await item.reload_models()
+        items = item.get_models()
+        
+        # Return result
+        return json_response({
+            "code": 1,
+            "message": "Ok",
+            "data": {
+                "items": items,
+            }
+        })

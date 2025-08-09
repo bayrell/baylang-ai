@@ -61,6 +61,15 @@ class FormModel
 	{
 		return this.errors[key] || "";
 	}
+	
+	
+	/**
+	 * Set field error
+	 */
+	setFieldError(key, value)
+	{
+		this.errors[key] = value;
+	}
 }
 
 export default FormModel;

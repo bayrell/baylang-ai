@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
-from helper import Index, DateTimeType, json_encode, json_decode
+from urllib.parse import urljoin
+from helper import Index, DateTimeType, fetch_json, json_encode, json_decode
 from langchain.agents.output_parsers.tools import ToolAgentAction
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from langchain_core.messages.ai import UsageMetadata
@@ -497,6 +498,24 @@ class LLM(Model):
         
         return None
     
+    
+    async def reload_models(self):
+        
+        """
+        Reload LLM models
+        """
+        
+        pass
+    
+    
+    def get_models(self):
+        
+        """
+        Returns LLM models
+        """
+        
+        return []
+
 
 class OpenAIContent(BaseModel):
     url: str = ""
@@ -547,6 +566,29 @@ class OllamaAI(LLM):
             model=self.content.model,
             temperature=self.content.temperature,
         )
+    
+    
+    async def reload_models(self):
+        
+        """
+        Reload LLM models
+        """
+        
+        result = await fetch_json(urljoin(self.content.url, "/api/tags"))
+        result = [item["name"] for item in result["models"]]
+        result.sort()
+        
+        # Save models
+        self.content.models = result
+    
+    
+    def get_models(self):
+        
+        """
+        Returns LLM models
+        """
+        
+        return self.content.models
 
 
 class Agent(Model):

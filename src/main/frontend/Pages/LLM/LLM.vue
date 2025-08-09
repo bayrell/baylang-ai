@@ -90,10 +90,10 @@
 
 <script lang="js">
 import Button from "@main/Components/Button.vue";
-import Field from "@main/Components/Field.vue";
 import Input from "@main/Components/Input.vue";
 import Dialog from "@main/Components/Dialog/Dialog.vue";
 import DialogModel from "@main/Components/Dialog/DialogModel.js";
+import Field from "@main/Components/Form/Field.vue";
 import Result from "@main/Components/Form/Result.vue";
 import FieldContent from "./FieldContent.vue";
 
@@ -134,7 +134,8 @@ export default
 		getTypes()
 		{
 			return [
-				{"key": "openai", "value": "Open AI"},
+				{"key": "ollama", "value": "Ollama"},
+				//{"key": "openai", "value": "Open AI"},
 			];
 		},
 		getType(key)
@@ -149,6 +150,7 @@ export default
 			this.model.form.setItem({
 				"type": "",
 				"name": "",
+				"content": {},
 			});
 			this.dialog.show();
 		},
