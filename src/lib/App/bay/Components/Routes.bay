@@ -1,0 +1,80 @@
+/*!
+ *  BayLang AI
+ *
+ *  (c) Copyright 2026 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace App.Components;
+
+use Runtime.Web.BaseRoute;
+use Runtime.Web.RedirectResponse;
+use Runtime.Web.RenderContainer;
+use Runtime.Web.RouteAction;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RouteModel;
+use App.Components.Pages.IndexPage.IndexPageModel;
+use App.Components.Pages.Migrations.MigrationPageModel;
+
+
+class Routes extends BaseRoute
+{
+	/**
+	 * Returns layout name
+	 */
+	static string getLayoutName() => "cabinet";
+	
+	
+	/**
+	 * Routes
+	 */
+	static Vector<RouteInfo> getRoutes() =>
+	[
+		new RouteAction
+		{
+			"uri": "/",
+			"name": "app:root",
+			"action": "actionRedirect",
+		},
+		new RouteAction
+		{
+			"uri": "/{lang}",
+			"name": "app:root:lang",
+			"action": "actionRedirect",
+		},
+		new RouteModel
+		{
+			"name": "app:index",
+			"uri": "/{lang}/",
+			"model": classof IndexPageModel,
+		},
+		new RouteModel
+		{
+			"name": "app:database:migrations",
+			"uri": "/{lang}/database/migrations",
+			"model": classof MigrationPageModel,
+		}
+	];
+	
+	
+	/**
+	 * Action redirect
+	 */
+	static async void actionRedirect(RenderContainer container)
+	{
+		string lang = container.layout.lang;
+		if (container.route.name == "app:root") lang = "en";
+		container.setResponse(new RedirectResponse("/" ~ lang ~ "/"));
+	}
+}

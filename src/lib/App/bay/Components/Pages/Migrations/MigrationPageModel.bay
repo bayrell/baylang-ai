@@ -1,0 +1,104 @@
+/*!
+ *  BayLang AI
+ *
+ *  (c) Copyright 2026 "Ildar Bikmamatov" <support@bayrell.org>
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+namespace App.Components.Pages.Migrations;
+
+use Runtime.lib;
+use Runtime.ApiResult;
+use Runtime.BaseModel;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.ResultModel;
+use Runtime.Widget.Tab.TabsModel;
+use App.Components.Pages.Migrations.MigrationPage;
+
+
+class MigrationPageModel extends BaseModel
+{
+	string component = classof MigrationPage;
+	Collection<string> items = [];
+	ResultModel result = null;
+	
+	
+	/**
+	 * Init widget settings
+	 */
+	void initWidget(Dict params)
+	{
+		parent(params);
+		
+		/* Add result */
+		this.result = this.createWidget(classof ResultModel, {
+			"styles": ["margin_top"],
+		});
+	}
+	
+	
+	/**
+	 * Process frontend data
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("items", new VectorType(new StringType()));
+	}
+	
+	
+	/**
+	 * Update database
+	 */
+	async void updateDatabase()
+	{
+		this.result.setWaitMessage();
+		ApiResult result = await this.layout.sendApi({
+			"api_name": "app.database.migration",
+			"method_name": "update",
+		});
+		this.result.setApiResult(result);
+	}
+	
+	
+	/**
+	 * Load table data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
+		
+		ApiResult result = await this.layout.sendApi({
+			"api_name": "app.database.migration",
+			"method_name": "item",
+		});
+		
+		if (result.isSuccess())
+		{
+			this.items = result.data.get("items");
+		}
+	}
+	
+	
+	/**
+	 * Build title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Database migrations");
+	}
+}

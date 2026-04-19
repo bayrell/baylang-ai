@@ -1,0 +1,29 @@
+{
+	"name": "BayLang AI",
+	"languages": ["nodejs", "es6"],
+	"modules":
+	[
+		{
+			"src": "./lib",
+			"type": "folder"
+		}
+	],
+	"assets":
+	[
+		{
+			"type": "js",
+			"dest": "public/assets/runtime.js",
+			"modules":
+			[
+				"@runtime",
+				"@widget",
+				"@ai",
+				"@app"
+			]
+		}
+	],
+	"exclude":
+	[
+		"node_modules"
+	]
+}

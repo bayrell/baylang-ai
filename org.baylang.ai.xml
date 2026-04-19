@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<template>
+	<uid>org.baylang.ai</uid>
+	<name>BayLang AI</name>
+	<version>1.0</version>
+	<maintainer>Ildar &lt;ildar@bayrell.org&gt;</maintainer>
+	<marketplace>https://baylang.com/</marketplace>
+	<xml name="baylang.com" priority="20">https://baylang.com/xml/org.baylang.ai.xml</xml>
+	<xml name="github.com" priority="10">https://raw.githubusercontent.com/bayrell/baylang-ai/main/org.baylang.ai.xml</xml>
+	<link name="Marketplace">https://baylang.com/en/product/org.baylang.ai</link>
+	<arch>amd64</arch>
+	<yaml>
+		<services>
+			<_var_app_name_>
+				<image>docker.io/bayrell/baylang-ai:1.0.0</image>
+				<hostname>{{.Service.Name}}.{{.Task.ID}}.local</hostname>
+				<environment>
+					<MYSQL_HOST>_var_mysql_host</MYSQL_HOST>
+					<MYSQL_USERNAME>_var_mysql_username</MYSQL_USERNAME>
+					<MYSQL_PASSWORD>_var_mysql_password</MYSQL_PASSWORD>
+					<MYSQL_DATABASE>_var_mysql_database</MYSQL_DATABASE>
+				</environment>
+				<volumes>_var_app_name_:/data</volumes>
+			</_var_app_name_>
+		</services>
+		<volumes>
+			<_var_app_name_ />
+		</volumes>
+	</yaml>
+	<variables>
+		<variable>
+			<name>_var_mysql_host</name>
+			<label>MySQL host</label>
+			<type>string</type>
+		</variable>
+		<variable>
+			<name>_var_mysql_username</name>
+			<label>MySQL username</label>
+			<type>string</type>
+		</variable>
+		<variable>
+			<name>_var_mysql_password</name>
+			<label>MySQL password</label>
+			<type>string</type>
+		</variable>
+		<variable>
+			<name>_var_mysql_database</name>
+			<label>MySQL database</label>
+			<type>string</type>
+		</variable>
+	</variables>
+	<admin>
+		<port>8000</port>
+		<nginx>
+		  location /applications/admin/_var_service_name_/ {
+				proxy_pass http://8000._var_service_name_.cloud_network.example/;
+				proxy_set_header X-ROUTE-PREFIX "/applications/admin/_var_service_name_";
+				rewrite /applications/admin/_var_service_name_/(.*) /$1 break;
+				proxy_set_header Accept-Encoding gzip;
+				proxy_set_header Host $http_host;
+				proxy_set_header Upgrade $http_upgrade;
+				proxy_set_header Connection "upgrade";
+				break;
+			}
+		</nginx>
+	</admin>
+	<modificators>
+		<li>org.bayrell.modificator.cloud_os</li>
+		<li>org.bayrell.modificator.deploy_hostname</li>
+	</modificators>
+	<patch>
+		<name>Template patch</name>
+		<operations></operations>
+	</patch>
+</template>

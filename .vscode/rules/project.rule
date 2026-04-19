@@ -1,0 +1,22 @@
+---
+description: О проекте
+alwaysApply: true
+---
+
+Расположение файла `.vscode/rules/project.rule`
+
+Информация о проекте
+- Название: BayLang AI
+- Краткое описание: Персональный ИИ
+
+Структура проекта:
+- vscode - Настройки VS Code
+- src/lib - Библиотеки Runtime
+- src/lib/App - Библиотека приложения
+- src/lib/Runtime - Runtime
+- src/lib/Runtime.AI - Библиотека работы с ИИ
+- src/lib/Runtime.Auth - Модуль аутентификации
+- src/lib/Runtime.Cabinet - Модуль кабинета
+- src/lib/Runtime.ORM - ORM библиотека
+- src/lib/Runtime.Web - Web-библиотека
+- src/lib/Runtime.Widget - Библиотека виджетов

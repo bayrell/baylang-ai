@@ -1,0 +1,37 @@
+{
+	"name": "baylang-ai",
+	"version": "1.0.0",
+	"description": "BayLang AI",
+	"author": "Ildar Bikmamatov",
+	"license": "Apache-2.0",
+	"main": "index.js",
+	"type": "commonjs",
+	"directories": {
+		"lib": "lib"
+	},
+	"scripts": {
+		"app": "node ./index.js",
+		"build": "baylang-nodejs make_all",
+		"watch": "node --watch ./index.js",
+		"console": "node ./console.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/bayrell/baylang-ai"
+	},
+	"keywords": [
+		"BayLang",
+		"AI"
+	],
+	"dependencies": {
+		"@fastify/formbody": "^8.0.0",
+		"@fastify/multipart": "^9.4.0",
+		"@fastify/static": "^9.0.0",
+		"@huggingface/transformers": "^4.0.0",
+		"bay-lang": "^1.2.2",
+		"fastify": "^5.8.0",
+		"mysql2": "^3.20.0",
+		"sharp": "^0.34.5",
+		"vue": "^3.5.0"
+	}
+}

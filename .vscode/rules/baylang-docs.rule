@@ -1,0 +1,2416 @@
+---
+description: BayLang Docs
+groups: baylang
+---
+
+BayLang это технология создания фронтенд и бэкенд приложений.
+
+При разработке сайта, сразу делай адаптивным для телефона и планшета. Сайт должен быть современным, красивым и стильным.
+
+Правила:
+- Используй табы вместо пробелов
+- Используй красивые стили для CSS оформление сайта.
+- Используй технология моделей и компонентов. Компоненты отображают внешний вид, а модели содержат бизнес логику. Не у всех компонентов есть модель.
+- Файлы BayLang имеют расширение bay.
+- Используй БЭМ стили и названия классов
+- Если ты меняешь module.json, ModuleDescription, Routes то добавляй в него изменения. Это важный файл и нужно сохранить тот контент, который был до изменения, потому что от этого зависит работа всей программы. Поэтому нужно добавлять новые изменения. Эти файлы отвечают за настройку проекта и машрутизацию.
+- Иконки можно добавлять через assets. this.layout.assets("module_name:file_path")
+- В папке docs находятся инструкции проекта. Используй эту папку, чтобы прочитать инструкцию.
+- Между двумя функциями в классе должно быть два Enter
+- Switch case нет в BayLang. Используй обычные if else
+
+
+# Типичные ошибки
+
+- Вместо classof App.Components.Pages.IndexPage.IndexPage, нужно делать отдельно use App.Components.IndexPage.IndexPage.TaskPage. А затем использовать этот модуль classof IndexPage
+- Если ты хочешь отредактировать файл, то вместо того, чтобы выводить файл на экран, лучше запиши его в тот файл.
+- Используй комментарии вида /* */ вместо //, потому что двойной слэш комментарии не работают.
+- В ModuleDescription Api и Route должны находится в секции BACKEND. Пример:
+```
+use Runtime.Web.Annotations.Api;
+use Runtime.Web.Annotations.Route;
+use App.Module.Api.ExampleApi;
+use App.Module.Components.Routes;
+class ModuleDescription
+{
+	pure Vector<Entity> entities() =>
+	[
+		#ifdef BACKEND then
+		new Api(classof ExampleApi),
+		new Route(classof Routes),
+		#endif
+	];
+}
+```
+- DTO модели находятся в папке Models. Допускается создание DTO моделей в папке со страницей, если эта модель работает только с этой страницей и ни с какой другой.
+- Прежде чем создавать новый файл, проверь список файлов в папке, и если такой файл уже есть, то прочитай содержимое и проверь, тот ли это файл, нужно создавать новый или редактировать существующий.
+- При работе с датой и временем есть метод shift(seconds), который возвращает новую дату с изменением на указанное количество секунд.
+
+# Api
+
+Работа с Api осуществляется через метод sendApi.
+
+Пример:
+```
+ApiResult result = await this.layout.sendApi({
+	"api_name": "app.catalog",
+	"method_name": "search",
+	"data":
+	{
+		"search": "product",
+		"page": 0,
+		"limit": 10,
+	},
+});
+if (result.isSuccess())
+{
+}
+```
+
+Api работает по методу Bus шины данных между компонентами системы. За это отвечает системный интерфейс Runtime.BusInterface.
+
+Его реализация доступна в layout через sendApi.
+
+```
+/**
+ * Send api
+ */
+async ApiResult sendApi(Map params)
+{
+	BusInterface api = @.provider("api");
+	#ifdef BACKEND then
+	params.set("storage", this.storage.backend);
+	#endif
+	return await api.send(params);
+}
+```
+
+В реализации используется Api провайдер и вызывается метод send.
+
+Если нужно использовать api для общения между микросервисами, то следует использовать системную шину данных и указывать название сервиса, к которому нужно обратиться.
+
+Пример:
+
+```
+BusInterface api = @.provider("system_bus");
+ApiResult result = api.send({
+	"service": "service_name",
+	"api_name": "app.catalog",
+	"method_name": "search",
+	"data":
+	{
+		"search": "product",
+		"page": 0,
+		"limit": 10,
+	},
+});
+```
+
+# BaseApi
+
+```
+namespace App.Api;
+
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.StringType;
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Web.BaseApi;
+
+class ExampleApi extends BaseApi
+{
+	pure string getApiName() => "app.example";
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	void getDataRules(MapType rules)
+	{
+		rules.addType("name", new StringType());
+	}
+	
+	
+	@ApiMethod{ "name": "index" }
+	async void actionIndex()
+	{
+		this.filterData();
+		
+		string name = this.data.get("name");
+		this.success({
+			"data": {
+				"name": name,
+			}
+		})
+	}
+}
+```
+
+Register api in module:
+```
+namespace App;
+
+use Runtime.Entity.Entity;
+use Runtime.Web.Annotations.Api;
+
+class ModuleDescription
+{
+	pure string getModuleName() => "App";
+	pure string getModuleVersion() => "1.0";
+	pure Map<string> requiredModules() => {
+		"Runtime": "*"
+	};
+	pure Vector<Entity> modules() => [
+		new Api("App.Api.ExampleApi")
+	];
+}
+```
+
+# SearchApi и SaveApi
+
+Эта документация описывает использование базовых API-модулей `SearchApi` и `SaveApi`, предназначенных для быстрой разработки RESTful API-endpoints. Эти модули позволяют создавать, читать, обновлять и удалять (CRUD) данные с минимальным количеством кода, предоставляя гибкие механизмы для валидации, фильтрации и преобразования данных.
+
+
+## Пример базы данных
+
+
+```
+namespace App.Database;
+
+use Runtime.BaseObject;
+use Runtime.ORM.Record;
+use Runtime.ORM.Annotations.AutoIncrement;
+use Runtime.ORM.Annotations.BigIntType;
+use Runtime.ORM.Annotations.Primary;
+use Runtime.ORM.Annotations.StringType;
+
+
+class Item extends Record
+{
+	/**
+     * Returns table name
+     */
+    pure string getTableName() => "forms";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure memorize Collection<BaseObject> schema() =>
+	[
+		/* Fields */
+		new BigIntType{"name": "id"},
+		new StringType{"name": "name"},
+		new StringType{"name": "description"},
+		new BigIntType{"name": "category_id"},
+		new DateTimeType{"name": "gmtime_add", "autocreate": true},
+		new DateTimeType{"name": "gmtime_edit", "autoupdate": true},
+		
+		/* Index */
+		new AutoIncrement{"name": "id"},
+		new Primary{"keys": ["id"]},
+	];
+}
+```
+
+
+## SearchApi
+
+Модуль `SearchApi` предоставляет базовый функционал для создания API-endpoints, предназначенных для поиска и получения данных из базы данных. Он разработан для гибкой настройки запросов и обработки результатов.
+
+**Ключевые возможности**
+
+- Автоматическое формирование запросов: Построение запросов к базе данных на основе параметров API-запроса.
+- Валидация входящих данных: Проверка параметров запроса (фильтры, лимиты, страницы).
+- Гибкое определение полей: Возможность указать, какие поля сущности должны быть возвращены.
+- Кастомизация запросов: Механизмы для добавления сложных условий фильтрации, сортировки и джойнов.
+- `search`: Поиск и получение списка записей с пагинацией.
+- `item`: Получение одной записи по первичному ключу.
+
+
+## Методы SearchApi
+
+- **getApiName** Используется для маршрутизации. Возвращает уникальное имя для вашего API.
+- **getRecordName** Возвращает имя класса сущности (Record), с которой работает AP
+- **getMiddleware** Определяет список Middleware для аутентификации, авторизации и т.д.
+- **getDataRules** Определяет правила валидации для входных данных запроса (например, фильтров).
+- **getItemFields** Определяет список полей, которые будут включены в результат поиска. Если список пуст, возвращаются все поля сущности.
+- **buildQuery** Позволяет изменять объект Query перед выполнением поиска. Здесь можно добавить условия фильтрации, сортировки, джойны и другие параметры запроса.
+- **convertItem** Позволяет преобразовать данные каждой записи перед их возвратом в ответе.
+
+
+## Пример SearchApi
+
+```
+namespace App.Api;
+
+use Runtime.Serializer.MapType;
+use Runtime.ORM.Query;
+use Runtime.Web.Annotations.ApiMethod;
+use Runtime.Widget.Api.SearchApi;
+use Runtime.WordPress.Admin.AdminMiddleware;
+use App.Database.Item;
+
+
+class ItemSearchApi extends SearchApi
+{
+	/**
+	 * Returns api name
+	 */
+	pure string getApiName() => "app.item";
+	
+	
+	/**
+	 * Returns record name
+	 */
+	pure string getRecordName() => classof Item;
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	void getDataRules(MapType rules)
+	{
+	}
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Vector<string> getItemFields() =>
+	[
+		"id",
+		"name"
+	];
+	
+	
+	/**
+	 * Build Query
+	 */
+	async void buildQuery(Query q)
+	{
+	}
+	
+	
+	/**
+	 * Action search
+	 */
+	@ApiMethod{ "name": "search" }
+	async void actionSearch()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Action item
+	 */
+	@ApiMethod{ "name": "item" }
+	async void actionItem()
+	{
+		await parent();
+	}
+}
+```
+
+
+## SaveApi
+
+Модуль SaveApi предоставляет базовый функционал для создания API-endpoints, предназначенных для сохранения (создания и обновления) и удаления данных в базе данных. Он обеспечивает надежную валидацию данных, обработку CRUD-операций и гибкую настройку логики через систему хуков.
+
+**Ключевые возможности**
+
+- Автоматическое сохранение/обновление: Распознавание, нужно ли создавать новую запись или обновлять существующую, на основе наличия первичного ключа.
+
+- Строгая валидация данных: Применение правил валидации к полям каждой записи.
+
+- Управление полями: Определение разрешенных к сохранению полей и полей для возврата в ответе.
+
+- Хуки жизненного цикла: Точки расширения (onSaveBefore, onSaveAfter, onDeleteBefore, onDeleteAfter) для встраивания бизнес-логики.
+
+Два основных действия:
+- save: Создание или обновление записи.
+- delete: Удаление записи по первичному ключу.
+
+
+## Методы SaveApi
+
+- getApiName(): Возвращает уникальное имя для вашего API.
+
+- getRecordName(): Возвращает имя класса Record (сущности), с которой работает API.
+
+- getMiddleware(): Определяет список промежуточного ПО (Middleware) для обработки запросов.
+
+- getDataRules(MapType rules): Определяет правила валидации для входных параметров запроса, которые не являются полями самой записи (например, foreign_key).
+
+- getItemRules(MapType rules): Важнейший метод для определения правил валидации и фильтрации для полей самой записи (item), которые приходят от клиента.
+
+- getItemFields(): Возвращает Vector<string> с именами полей, которые должны быть возвращены в ответе после сохранения.
+
+- getSaveFields(): Возвращает Vector<string> с именами полей, разрешенных к сохранению. Это критически важно для безопасности, чтобы не позволить клиенту изменять несанкционированные поля. Если метод возвращает null, сохраняются все валидные поля.
+
+- convertItem(Map item): Позволяет преобразовать данные записи перед их возвратом в ответе.
+
+- buildQuery(Query q): Изменяет объект Query перед поиском существующей записи в методах save и delete.
+
+- onSaveBefore(): Хук, вызываемый перед сохранением записи (созданием/обновлением). Идеально для автоматической установки полей (gmtime_add, gmtime_edit), или выполнения бизнес-логики.
+
+- onSaveAfter(): Хук, вызываемый после успешного сохранения записи.
+
+- onDeleteBefore(): Хук, вызываемый перед удалением записи. Идеально для проверки прав доступа, наличия связанных данных.
+
+- onDeleteAfter(): Хук, вызываемый после успешного удаления записи.
+
+
+## Пример использования
+
+Продолжая пример с сущностью Item, для создания API для сохранения и удаления товаров, мы можем определить следующий класс:
+
+```
+namespace App.Api;
+
+use Runtime.Widget.Api.SaveApi;
+use Runtime.Widget.Api.Rules.UniqueRule;
+use Runtime.WordPress.Admin.AdminMiddleware;
+use App.Database.Item;
+
+
+class ItemSaveApi extends SaveApi
+{
+	/**
+	 * Returns api name
+	 */
+	pure string getApiName() => "app.item";
+	
+	
+	/**
+	 * Returns record name
+	 */
+	pure string getRecordName() => classof Item;
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	Vector<Middleware> getMiddleware() =>
+	[
+		new AdminMiddleware(),
+	];
+	
+	
+	/**
+	 * Returns save rules
+	 */
+	Vector<BaseRule> rules() =>
+	[
+		new UniqueRule{"field_name": "name"},
+	];
+	
+	
+	/**
+	 * Returns data rules
+	 */
+	void getDataRules(MapType rules)
+	{
+	}
+	
+	
+	/**
+	 * Returns item rules
+	 */
+	void getItemRules(MapType rules)
+	{
+		rules.addType("id", new IntegerType());
+		rules.addType("name", new Required());
+		rules.addType("name", new StringType());
+		rules.addType("description", new StringType());
+		rules.addType("category_id", new IntegerType());
+	}
+	
+	
+	/**
+	 * Returns item fields
+	 */
+	Vector<string> getItemFields() =>
+	[
+		"id",
+		"name",
+		"description",
+		"category_id",
+		"gmtime_add",
+		"gmtime_edit",
+	];
+	
+	
+	/**
+	 * Returns save fields
+	 */
+	Vector<string> getSaveFields() =>
+	[
+		"name",
+		"description",
+	];
+	
+	
+	/**
+	 * Build query
+	 */
+	async void buildQuery(Query q)
+	{
+		await parent(q);
+		
+		if (this.foreign_key && this.foreign_key.has("category_id"))
+		{
+			q.where("category_id", "=", this.foreign_key.get("category_id"));
+		}
+	}
+	
+	
+	/**
+	 * Save before
+	 */
+	async void onSaveBefore()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Save after
+	 */
+	async void onSaveAfter()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Delete before
+	 */
+	async void onDeleteBefore()
+	{
+		await parent();
+		
+		/* Запрет удаления, если есть связанные заказы */
+		if (this.item.get("has_orders"))
+		{
+			throw new ApiError(new RuntimeException(
+				"Невозможно удалить запись, так как существуют связанные заказы."
+			));
+		}
+	}
+	
+	
+	/**
+	 * Delete after
+	 */
+	async void onDeleteAfter()
+	{
+	}
+	
+	
+	/**
+	 * Save action
+	 */
+	@ApiMethod{ "name": "save" }
+	async void actionSave()
+	{
+		await parent();
+	}
+	
+	
+	/**
+	 * Delete action
+	 */
+	@ApiMethod{ "name": "delete" }
+	async void actionDelete()
+	{
+		await parent();
+	}
+}
+```
+
+# Connection
+
+## Подключение к базе данных
+
+```
+namespace App.Database;
+
+use Runtime.ORM.Database.ConnectionFactory;
+use Runtime.ORM.MySQL.ConnectionMySQL;
+
+class DatabaseConnection extends ConnectionFactory
+{
+	async ConnectionMySQL createConnection()
+	{
+		ConnectionMySQL conn = new ConnectionMySQL();
+		conn.host = @.env("MYSQL_HOST");
+		conn.port = @.env("MYSQL_PORT");
+		conn.login = @.env("MYSQL_LOGIN");
+		conn.password = @.env("MYSQL_PASSWORD);
+		conn.database = @.env("MYSQL_DATABASE");
+		return conn;
+	}
+}
+```
+
+Регистрация DatabaseConnection:
+```
+namespace App;
+
+use Runtime.Entity.Entity;
+
+class ModuleDescription
+{
+	pure string getModuleName() => "App";
+	pure string getModuleVersion() = "1";
+	pure Map<string> requiredModules() => {
+		"Runtime": "*",
+	};
+	pure Vector<Entity> enities() => [
+		new DatabaseConnection(),
+	];
+}
+```
+
+# Connection
+
+## Подключение к базе данных
+
+```
+namespace App.Database;
+
+use Runtime.ORM.Database.ConnectionFactory;
+use Runtime.ORM.MySQL.ConnectionMySQL;
+
+class DatabaseConnection extends ConnectionFactory
+{
+	async ConnectionMySQL createConnection()
+	{
+		ConnectionMySQL conn = new ConnectionMySQL();
+		conn.host = @.env("MYSQL_HOST");
+		conn.port = @.env("MYSQL_PORT");
+		conn.login = @.env("MYSQL_LOGIN");
+		conn.password = @.env("MYSQL_PASSWORD);
+		conn.database = @.env("MYSQL_DATABASE");
+		return conn;
+	}
+}
+```
+
+Регистрация DatabaseConnection:
+```
+namespace App;
+
+use Runtime.Entity.Entity;
+
+class ModuleDescription
+{
+	pure string getModuleName() => "App";
+	pure string getModuleVersion() = "1";
+	pure Map<string> requiredModules() => {
+		"Runtime": "*",
+	};
+	pure Vector<Entity> enities() => [
+		new DatabaseConnection(),
+	];
+}
+```
+
+# Record
+
+Пример Record:
+```
+namespace App.Database;
+
+use Runtime.BaseObject;
+use Runtime.ORM.Record;
+use Runtime.ORM.Annotations.AutoIncrement;
+use Runtime.ORM.Annotations.BigIntType;
+use Runtime.ORM.Annotations.Primary;
+use Runtime.ORM.Annotations.StringType;
+
+
+class Item extends Record
+{
+	/**
+     * Returns table name
+     */
+    pure string getTableName() => "forms";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure memorize Collection<BaseObject> schema() =>
+	[
+		/* Fields */
+		new BigIntType{"name": "id"},
+		new StringType{"name": "name"},
+		new StringType{"name": "description"},
+		new BigIntType{"name": "category_id"},
+		new DateTimeType{"name": "gmtime_add", "autocreate": true},
+		new DateTimeType{"name": "gmtime_edit", "autoupdate": true},
+		
+		/* Index */
+		new AutoIncrement{"name": "id"},
+		new Primary{"keys": ["id"]},
+	];
+}
+```
+
+Получить объект из базы
+```
+use Runtime.ORM.Relation;
+
+Relation<Item> relation = new Relation(classof Item);
+Item item = await relation.fetchRecord(
+    relation.select().where("id", "=", "1")
+);
+```
+
+Получить primary key:
+```
+Map pk = item.getPrimaryKey();
+```
+
+Сохранить объект
+```
+await item.save();
+```
+
+Удалить объект:
+```
+await item.delete();
+```
+
+Получить данные объекта:
+```
+item.all();
+```
+
+Получить старые данные объекта:
+```
+item.old();
+```
+
+Получить только определенные поля:
+```
+item.intersect(["id", "name"]);
+```
+
+Установить новые данные:
+```
+item.assign({
+    "name": "Name"
+})
+```
+
+Проверить изменился ли объект:
+```
+bool is_changed = item.isChanged();
+```
+
+Проверить новый ли объект:
+```
+bool is_new = item.isNew()
+```
+
+Проверить объект был загружен из базы данных:
+```
+bool is_update = item.isUpdate();
+```
+
+# Миграции базы данных
+
+Пример миграции:
+```
+namespace App.Database.Migrations;
+
+use Runtime.ORM.BaseMigration;
+use Runtime.ORM.Query;
+
+
+class App extends BaseMigration
+{
+	/**
+	 * Returns migration name
+	 */
+	string name = "app_2026";
+	
+	
+	/**
+	 * Returns required
+	 */
+	Vector<string> required = [];
+	
+	
+	/**
+	 * Register migration
+	 */
+	Vector<string> migrations =
+	[
+		"create_products",
+	];
+	
+	
+	/**
+	 * Create products migration
+	 */
+	BaseMigration create_products() => new BaseMigration
+	{
+		"up": async void ()
+		{
+			string table_name = this.connection.getTableName("products");
+			this.comment("Create table " ~ table_name);
+			await this.executeSQL(
+				"CREATE TABLE `" ~ table_name ~ "` (
+					`id` BIGINT NOT NULL AUTO_INCREMENT,
+					`type` VARCHAR(255) NOT NULL DEFAULT '',
+					`uid` VARCHAR(255) NOT NULL DEFAULT '',
+					`name` VARCHAR(255) NOT NULL DEFAULT '',
+					`gmtime_add` DATETIME NOT NULL,
+					`gmtime_edit` DATETIME NOT NULL,
+					PRIMARY KEY (`id`),
+					UNIQUE KEY `uid` (`uid`),
+					FULLTEXT `search` (`search`)
+				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+			);
+		},
+		"down": async void ()
+		{
+			string table_name = this.connection.getTableName("products");
+			this.comment("Drop table " ~ table_name);
+			await this.executeSQL(
+				"DROP TABLE IF EXISTS `" ~ table_name ~ "`"
+			);
+		},
+	};
+}
+```
+
+Зарегистрируйте миграцию в ModuleDescription:
+
+```
+use Runtime.ORM.Annotations.Migration;
+
+class ModuleDescription
+{
+	void entities() =>
+	[
+		new Migration("App.Database.Migrations.App"),
+	];
+}
+```
+
+## Полнотекстовый поиск
+
+string query = "";
+q.addRawField(new QueryFilter("field_name", "match", query, "full_text"))
+	.where("field_name", "match", query)
+	.orderBy("full_text", "desc")
+;
+
+
+# Relation
+
+
+## Пример Record
+
+```
+namespace App;
+
+use Runtime.BaseObject;
+use Runtime.ORM.Record;
+use Runtime.ORM.Annotations.AutoIncrement;
+use Runtime.ORM.Annotations.BigIntType;
+use Runtime.ORM.Annotations.Primary;
+use Runtime.ORM.Annotations.StringType;
+
+class Item extends Record
+{
+	/**
+	 * Returns table name
+	 */
+	pure string getTableName() => "items";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure memorize Collection<BaseObject> schema() =>
+	[
+		/* Fields */
+		new BigIntType{"name": "id"},
+		new StringType{"name": "name"},
+		new DateTimeType{"name": "gmtime_create", "autocreate": true},
+		new DateTimeType{"name": "gmtime_update", "autoupdate": true},
+		
+		/* Index */
+		new AutoIncrement{"name": "id"},
+		new Primary{"keys": ["id"]},
+	];
+}
+```
+
+## Создание Relation
+
+```
+use Runtime.ORM.Relation;
+
+Relation<Item> relation = new Relation(classof Item);
+```
+
+
+## Создание Record
+
+```
+Record createRecord(Map data = null);
+```
+
+Пример:
+```
+/* Create item */
+Item item = relation.createRecord({
+	"name": "Item",
+});
+
+/* Or */
+Item item = new Item();
+await item.save();
+
+/* Refresh item */
+await item.refresh();
+DateTime gmtime_create = item.gmtime_create;
+```
+
+
+## Аннотации
+
+Получает список всех аннотаций для Relation. Аннотации это схема данных.
+```
+Vector<BaseObject> getAnotations();
+```
+
+Получает аннотацию для поля счетчика.
+```
+AutoIncrement getAutoIncrement();
+```
+
+Получает список первичных ключей для Relation
+```
+Vector<string> getPrimaryKeys();
+```
+
+Получат первичный ключ по данным
+```
+Map getPrimaryKey(Map data);
+```
+
+Получает фильтр для первичного ключа. Параметр use_full_key добавляет названию таблицы к названию поля.
+```
+Vector<QueryFilter> getPrimaryFilter(Map data, bool use_full_key = true);
+```
+
+Пример:
+```
+Relation relation = new Relation(classof Item);
+
+/* Get primary key */
+Map pk = relation.getPrimaryFilter(post_data.get("item"));
+```
+
+
+## Конвертация данных
+
+Подготовить данные к сохранению в базу данных
+```
+async Map toDatabase(Map data);
+```
+
+Преобразовать данные из базы данных в примитивные объекты
+```
+async Map fromDatabase(Map data);
+```
+
+
+## Создание и удаление объекта
+
+
+Сохранить или создать объект в базе данных
+```
+async void save(Record item);
+```
+
+Удалить объект из базы данных
+```
+async void delete(Record item);
+```
+
+
+## Обновление объекта
+
+Обновить данные объекта из базы данных. Полезно, когда объект был сохранен в базу данных и нужно получить его новую версию.
+```
+async void refresh(Record item);
+```
+
+
+## Запросы в базу данных
+
+
+Создание нового экземпляра запроса
+```
+Query query();
+Query select(Vector fields = null);
+```
+
+Получить результат запроса
+```
+async QueryResult<Map> fetchAll(Query q)
+```
+
+Получить результат запроса в виде Record
+```
+async QueryResult<Record> fetchAllRecords(Query q)
+```
+
+Получить только одну строчку
+```
+async Map fetchOne(Query q)
+```
+
+Получить только один Record
+```
+async Record fetchRecord(Query q)
+```
+
+Найти строчки по фильтру
+```
+async QueryResult find(Vector<QueryFilter> filter)
+```
+
+Найти Record по фильтру
+```
+async Record findRecord(Vector<QueryFilter> filter)
+```
+
+Найти Record по primary key
+```
+async Record findByPk(Map pk)
+async Record findById(var id)
+```
+
+Найти или создать объект по фильтру.
+```
+async Record findOrCreate(Map filter)
+```
+
+Если объекта в базе нет, то будет создан экземпляр Record. Но в базе он появится, только после save()
+
+# Пример страницы
+
+Чтобы создать страницу нужно создать модель и компонент. Модель хранит состояние и бизнес логику системы, а компонент отображает это состояние.
+
+Пример модели:
+
+```
+namespace App.Components.Pages.IndexPage;
+
+use Runtime.BaseModel;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Web.RenderContainer;
+use App.Components.Pages.IndexPage.IndexPage;
+
+class IndexPageModel extends BaseModel
+{
+	string component = classof IndexPage;
+	string message = "Hello world!";
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("message", new StringType());
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
+	}
+	
+	
+	/**
+	 * Set message
+	 */
+	void setMessage(string message)
+	{
+		this.message = message;
+	}
+	
+	
+	/**
+	 * Build title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		container.layout.setPageTitle("Index page");
+	}
+}
+```
+
+Пример компонента:
+
+```
+<class name="App.Components.Pages.IndexPage.IndexPage">
+
+<use name="Runtime.Widget.Button" component="true" />
+
+<style>
+.index_page{
+	padding-top: 100px;
+	text-align: center;
+	.message{
+		margin-bottom: var(--space);
+	}
+}
+</style>
+
+<template>
+	<div class="page index_page">
+		<div class="message">{{ this.model.message }}</div>
+		<Button class="button--default" @event:click="this.onClick()">Click</Button>
+	</div>
+</template>
+
+<script>
+
+void onClick()
+{
+	this.model.setMessage(this.model.message ~ "!");
+}
+
+</script>
+
+</class>
+```
+
+Также ее надо зарегистрировать в маршрутах:
+
+```
+namespace App.Components;
+
+class Routes extends BaseRoute
+{
+	/**
+	 * Returns layout name
+	 */
+	static string getLayoutName() => "default";
+	
+	
+	/**
+	 * Returns routes
+	 */
+	static Collection<RouteInfo> getRoutes() =>
+	[
+		new RouteModel
+		{
+			"uri": "/{lang}/",
+			"name": "app:index",
+			"model": "App.Components.Pages.IndexPage.IndexPageModel",
+		},
+	];
+}
+```
+
+# Маршрутизация
+
+Для того, чтобы объявить маршрутизацию ее надо зарегистрировать в ModuleDescription.
+
+```
+pure Vector<Entity> entities() =>
+[
+	new Route("App.Components.Pages.Routes"),
+];
+```
+
+Затем создать файл App.Components.Pages.Routes
+
+```
+namespace App.Components.Pages;
+
+use Runtime.Web.BaseRoute;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RouteModel;
+
+
+class Routes extends BaseRoute
+{
+	/**
+	 * Returns layout name
+	 */
+	static string getLayoutName() => "default";
+	
+	
+	/**
+	 * Returns routes
+	 */
+	static Vector<RouteInfo> getRoutes() =>
+	[
+		new RouteModel
+		{
+			"uri": "/",
+			"name": "app:index",
+			"model": "App.Components.Pages.IndexPage.IndexPageModel"
+		}
+	];
+}
+```
+
+Методы:
+- getLayoutName - Объявляет название layout, который будет отображаться. Список layout регистрируется через SetupLayout::hook
+- getRoutes - Регистрирует маршруты приложения
+
+Типы маршрутов:
+- RouteAction - будет вызвана функция для обработки запроса
+- RouteModel - будет вызвана модель страницы
+- RoutePage - будет отображен компонент
+
+
+Пример RouteAction:
+```
+namespace App.Components;
+
+class Routes extends BaseRoute
+{
+	static Vector<RouteInfo> getRoutes() =>
+	[
+		new RouteAction
+		{
+			"uri": "/",
+			"name": "app:root",
+			"action": "actionRedirect",
+		},
+		new RouteAction
+		{
+			"uri": "/{lang}",
+			"name": "app:root:lang",
+			"action": "actionRedirect",
+		},
+	];
+	
+	
+	/**
+	 * Action redirect
+	 */
+	static async void actionRedirect(RenderContainer container)
+	{
+		string lang = container.layout.lang;
+		if (container.route.name == "app:root") lang = "en";
+		container.setResponse(new RedirectResponse("/" ~ lang ~ "/"));
+	}
+}
+```
+
+
+Пример RoutePage:
+
+```
+namespace App.Components.Pages;
+
+use Runtime.Web.BaseRoute;
+use Runtime.Web.RouteInfo;
+use Runtime.Web.RoutePage;
+
+
+class Routes extends BaseRoute
+{
+	/**
+	 * Returns layout name
+	 */
+	static string getLayoutName() => "default";
+	
+	
+	/**
+	 * Returns routes
+	 */
+	static Vector<RouteInfo> getRoutes() =>
+	[
+		new RoutePage
+		{
+			"uri": "/",
+			"name": "app:index",
+			"page": "App.Components.Pages.IndexPage.IndexPage",
+			"data":
+			{
+				"title": "Index page"
+			},
+		}
+	];
+}
+```
+
+## URL параметры
+
+В URL возможно добавлять параметры:
+
+```
+new RouteModel
+{
+	"uri": "/{lang}/catalog/{id}",
+	"name": "app:catalog:item",
+	"model": "App.Components.Pages.Catalog.ItemPageModel",
+}
+```
+
+В модели можно получить эти параметры через контейнер:
+
+```
+namespace App.Components.Pages.Catalog;
+
+use Runtime.BaseModel;
+use App.Components.Pages.Catalog.IndexPage;
+
+
+class ItemPageModel extends BaseModel
+{
+	string component = classof IndexPage;
+	Vector<Product> items = [];
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("items", new VectorType(new ObjectType{
+			"class_name": classof Product,
+		}));
+	}
+	
+	
+	/**
+	 * Load data
+	 */
+	async void loadData(RenderContainer container)
+	{
+		await parent(container);
+		
+		int id = container.route.matches.get("id");
+		ApiResult result = await this.layout.sendApi({
+			"api_name": "app.catalog",
+			"method_name": "item",
+			"data": {
+				"lang": this.layout.lang,
+				"pk": {
+					"id": id,
+				}
+			},
+		});
+		if (result.isSuccess())
+		{
+			this.items = result.data.get("items");
+		}
+	}
+}
+```
+
+При этом на бэкенде данные будут загружены через api. И модель автоматически сериализуется и восстановлена на фронтенде.
+
+
+## Вызов машрутов.
+
+Пример использования url в компоненте:
+
+<a href={{ this.layout.url("app:index", { "key": value }) }}>IndexPage</a>
+
+this.layout.url("app:index", { "key": value }) возвращает url.
+
+# Поисковая оптимизация
+
+Для того чтобы указать title и description нужно в модели страницы создать функцию buildTitle
+
+```
+/**
+ * Build title
+ */
+void buildTitle(RenderContainer container)
+{
+	string title = "Page title";
+	string description = "Page description";
+	if (this.layout.lang == "ru")
+	{
+		title = "Заголовок страницы";
+		description = "Главная страница";
+	}
+	this.layout.setPageTitle(title);
+	this.layout.setDescription(description);
+}
+```
+
+Также в ModuleDescription можно добавить хук:
+
+```
+namespace App;
+
+use Runtime.Widget.Seo.Seo;
+
+class ModuleDescription
+{
+    pure Vector<Entity> entities() =>
+    [
+        Seo::hook(),
+    ];
+}
+```
+
+Этот хук создает SeoModel и добавляет мета теги OpenGraph.
+
+SeoModel это модель для дополнительного управления тегами.
+
+```
+use Runtime.Widget.Seo.SeoModel;
+
+void buildTitle(RenderContainer container)
+{
+    SeoModel seo = this.layout.get("seo");
+}
+```
+
+Параметры SeoModel:
+- favicon
+- canonical_url
+- article_published_time
+- article_modified_time
+- robots
+- tags
+
+# Сериализация данных
+
+Веб-фреймворк позволяет передавать данные с фронтенда на бэкенд и проверять их в соответствии с заданными правилами.
+
+
+## Проверка Map
+
+Параметр MapType используется для проверки структур Map. Для каждого ожидаемого ключа можно определить правила.
+
+```
+use Runtime.Unit.AssertException;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.TypeError;
+
+Map data = {
+	"name": "User",
+};
+
+MapType rules = new MapType{
+	"name": new StringType(),
+};
+
+Map new_data = serializer.filter(data, errors);
+if (errors.count() > 0)
+{
+	string message = rs::join(", ", TypeError::getMessages(error))
+	throw new AssertException(message);
+}
+```
+
+
+## Проверка Vector
+
+Параметр VectorType используется для проверки векторных структур. Вы определяете одно правило, которое применяется ко всем элементам внутри вектора.
+
+```
+use Runtime.Unit.AssertException;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.TypeError;
+use Runtime.Serializer.VectorType;
+
+Map data = {
+	"name": "User",
+	"fruits": ["apple", "banana", "cherry", "grape", "orange", "watermelon"],
+};
+
+MapType rules = new MapType{
+	"name": new StringType(),
+	"fruits": new VectorType(new StringType()),
+};
+
+Vector errors = [];
+Map new_data = rules.filter(data, errors);
+if (errors.count() > 0)
+{
+	string message = rs::join(", ", TypeError::getMessages(errors));
+	throw new AssertException(message);
+}
+```
+
+
+## Проверка сложных данных
+
+Для более сложных структур данных, особенно при работе с вложенными объектами или специфическими правилами для разных частей данных, можно использовать вложенные правила.
+
+```
+use Runtime.Unit.AssertException;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.TypeError;
+use Runtime.Serializer.VectorType;
+
+Map data = {
+	"profile": {
+		"name": "User",
+		"fruits": ["apple", "banana", "cherry", "grape", "orange", "watermelon"],
+	},
+	"settings": {
+		"theme": "dark",
+		"lang": "en",
+	},
+};
+
+MapType rules = new MapType{
+	"profile": new MapType{
+		"name": new StringType(),
+		"fruits": new VectorType(new StringType()),
+	},
+	"settings": new MapType{
+		"theme": new StringType(),
+		"lang": new StringType(),
+	}
+};
+
+Vector errors = [];
+Map new_data = serializer.filter(data, errors);
+if (errors.count() > 0)
+{
+	string message = rs::join(", ", TypeError::getMessages(errors));
+	throw new AssertException(message);
+}
+```
+
+## Проверка объектов
+
+Объекты BayLang могут реализовывать интерфейс SerializeInterface для определения собственных правил сериализации.
+
+```
+namespace App.Models;
+
+use Runtime.Unit.AssertException;
+use Runtime.Serializer.MapType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.TypeError;
+use Runtime.Serializer.VectorType;
+use Runtime.SerializeInterface;
+
+class User extends BaseObject implements SerializeInterface
+{
+	string name = "";
+	Vector fruits = [];
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("name", new StringType());
+		rules.addType("fruits", new VectorType(new StringType()));
+	}
+}
+
+Map data = {
+	"name": "User",
+	"fruits": ["apple", "banana", "cherry", "grape", "orange", "watermelon"],
+};
+
+User user = new User();
+Vector errors = [];
+rtl::assign(user, data, errors);
+
+if (errors.count() > 0)
+{
+	string message = TypeError::getMessages(errors);
+	throw new AssertException(message);
+}
+```
+
+
+## Сериализация
+
+Для сериализации используйте rtl::serialize
+
+```
+User user = new User();
+user.name = "User";
+
+Map data = rtl::serialize(user);
+```
+
+
+## Создание своего типа данных
+
+Вы можете реализовать интерфейс Runtime.Serializer.BaseType для создания собственной логики проверки или преобразования данных.
+
+```
+namespace App.Serializer;
+
+use Runtime.Serializer.BaseType;
+
+class CustomType implements BaseType
+{
+	/**
+	 * Filter value
+	 */
+	var filter(var value, Vector errors)
+	{
+		return value;
+	}
+	
+	
+	/**
+	 * Returns data
+	 */
+	var serialize(var value)
+	{
+		return value;
+	}
+}
+```
+
+# Создание форм и таблиц в админке
+
+Пример компонента:
+```
+<class name="App.Admin.Components.Pages.Market.Item">
+
+<use name="Runtime.Widget.Button" component="true" />
+<use name="Runtime.Widget.RowButtons" component="true" />
+<use name="Runtime.Widget.Table.TableWrap" component="true" />
+
+<template>
+	<div class="marketplace_page">
+		<TableWrap model={{ this.model.manager }}>
+			<slot name="top_buttons">
+				<RowButtons>
+					<Button class="button--success"
+						@event:click="this.model.manager.showAddDialog()"
+					>Add</Button>
+				</RowButtons>
+			</slot>
+			<slot name="row_buttons" args="Map item, Map field, int row_number">
+				<RowButtons>
+					<Button class="button--small"
+						@event:click="this.model.manager.showEditDialog(item.copy())"
+					>Edit</Button>
+					<Button class="button--small button--danger"
+						@event:click="this.model.manager.showDeleteDialog(item.copy())"
+					>Delete</Button>
+				</RowButtons>
+			</slot>
+		</TableWrap>
+	</div>
+</template>
+
+</class>
+```
+
+Пример модели:
+```
+namespace App.Admin.Components.Pages.Item;
+
+use Runtime.BaseModel;
+use Runtime.Serializer.IntegerType;
+use Runtime.Serializer.ObjectType;
+use Runtime.Serializer.StringType;
+use Runtime.Serializer.VectorType;
+use Runtime.Web.RenderContainer;
+use Runtime.Widget.Table.TableManager;
+use App.Admin.Components.Pages.Item;
+
+
+class ItemModel extends BaseModel
+{
+	string component = classof Item;
+	TableManager manager = null;
+	
+	
+	/**
+	 * Serialize object
+	 */
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("manager", new ObjectType());
+	}
+	
+	
+	/**
+	 * Init widget
+	 */
+	void initWidget(Map params)
+	{
+		parent(params);
+		
+		this.manager = this.createWidget(classof TableManager, {
+			"autoload": true,
+			"api_name": "admin.item",
+			"page_name": "p",
+			"title": method this.getTableTitle,
+			"primary_rules":
+			{
+				"id": new IntegerType(),
+			},
+			"item_rules":
+			{
+				"id": new IntegerType(),
+				"type": new StringType(),
+				"slug": new StringType(),
+				"tags": new VectorType(new StringType()),
+				"name": new StringType(),
+			},
+			"form_fields":
+			[
+				{
+					"name": "slug",
+					"label": "Slug",
+					"component": "Runtime.Widget.Input",
+				},
+				{
+					"name": "type",
+					"label": "Type",
+					"component": "Runtime.Widget.Select",
+					"props":
+					{
+						"options":
+						[
+							{"key": "template", "value": "Template"},
+							{"key": "modificator", "value": "Modificator"},
+						]
+					}
+				},
+				{
+					"name": "tags",
+					"label": "Tags",
+					"component": "Runtime.Widget.Tag",
+				},
+				{
+					"name": "name",
+					"label": "Name",
+					"component": "Runtime.Widget.Input",
+				},
+			],
+			"table_fields":
+			[
+				{
+					"name": "row_number",
+				},
+				{
+					"name": "name",
+					"label": "Name",
+				},
+				{
+					"name": "type",
+					"label": "Type",
+					"value": string (Map item)
+					{
+						string type = item.get("type");
+						if (type == "template") return "Template";
+						else if (type == "modificator") return "Modificator";
+						return "";
+					},
+				},
+				{
+					"name": "buttons",
+					"slot": "row_buttons",
+				}
+			],
+		});
+	}
+	
+	
+	/**
+	 * Returns table title
+	 */
+	string getTableTitle(string action, Map item)
+	{
+		if (action == "add") return "Add";
+		else if (action == "edit") return "Edit";
+		else if (action == "delete") return "Delete";
+		else if (action == "delete_message") return "Delete";
+		return "";
+	}
+	
+	
+	/**
+	 * Build page title
+	 */
+	void buildTitle(RenderContainer container)
+	{
+		this.layout.setPageTitle("Items");
+	}
+}
+```
+
+Вместо item_rules можно создать модель. Пример:
+
+```
+namespace App.Models;
+
+use Runtime.BaseDTO;
+
+class Item extends BaseDTO
+{
+	int id = 0;
+	string type = "";
+	string name = "";
+	Vector<string> tags = [];
+	
+	static void serialize(ObjectType rules)
+	{
+		parent(rules);
+		rules.addType("id", new IntegerType());
+		rules.addType("type", new StringType());
+		rules.addType("tags", new VectorType(new StringType()));
+		rules.addType("name", new StringType());
+	}
+}
+```
+
+BaseDTO уже реализует интерфейс для сериализации. Это объект для обмена данными между системами проекта (фронтенд и бэкенд).
+
+Теперь можно использовать модель в модели страницы:
+```
+"item_rules": new ObjectType{ "class_name": classof Item },
+```
+
+В api тоже рекомендуется использовать DTO
+
+Пример:
+```
+void getItemRules(MapType rules)
+{
+	Item::serialize(rules);
+	
+	/* Add custom api rules */
+	rules.addType("name", new Required());
+}
+```
+
+# Components
+
+Регистрирует компоненты в системе. Иногда нужно добавить дополнительные компоненты в системе.
+
+Добавление компонентов в CSS стили:
+```
+/* Components */
+Components::hook([
+	"App.Components.Blocks.CSS",
+	"App.Components.Pages.IndexPage.IndexPage",
+	"App.Components.Pages.NotFoundPage.NotFoundPage",
+])
+```
+
+Добавление компонентов в блок header:
+```
+/* Header */
+Components::header([
+	"App.Components.Blocks.CSS",
+	"App.Components.Blocks.Seo",
+])
+```
+
+Добавление компонентов в футер:
+```
+/* Footer */
+Components::footer([
+	"App.Components.Blocks.Metrika",
+])
+```
+
+# Как создать хук
+
+Создайте файл:
+
+```
+namespace App.Hooks;
+
+use Runtime.BaseLayout;
+use Runtime.RenderContainer;
+use Runtime.Hooks.BaseHook;
+use Runtime.Hooks.RuntimeHook;
+use Runtime.Web.Hooks.AppHook as WebHook;
+
+
+class AppHook extends BaseHook
+{
+	/**
+	 * Register hooks
+	 */
+	void register_hooks()
+	{
+		this.register(WebHook::ROUTE_AFTER, "routeAfter");
+	}
+	
+	
+	/**
+	 * Route after
+	 */
+	void routeAfter(Map params)
+	{
+		RenderContainer container = params.get("container");
+	}
+}
+```
+
+Зарегистрируйте хук:
+
+```
+namespace App;
+
+class ModuleDescription
+{
+	Vector<Entity> entities() =>
+	[
+		new Hook("App.Hooks.AppHook"),
+	];
+}
+```
+
+# DetectLanguage
+
+Этот хук позволяет автоматически определяеть язык по URL. После определения хук устанавливает параметр `lang` для Layout.
+
+В ModuleDescription добавьте:
+```
+/* Languages */
+DetectLanguage::hook({
+	"default_language": "en",
+	"allowed_languages": ["en", "ru"],
+})
+```
+
+Опции:
+- allowed_languages - разрешенные языки
+- default_language - Это язык по умолчанию, который будет выбран для сайта
+- route_match_name - Параметр для Route, который будет отвечать за язык. Обычно это lang
+
+Пример Route:
+```
+new RouteModel
+{
+	"uri": "/{lang}/page",
+	"name": "app:page",
+	"model": "App.Components.Pages.CustomPage.CustomPageModel",
+}
+```
+
+# DetectLanguage
+
+Этот хук позволяет автоматически определяеть язык по URL. После определения хук устанавливает параметр `lang` для Layout.
+
+В ModuleDescription добавьте:
+```
+/* Languages */
+DetectLanguage::hook({
+	"default_language": "en",
+	"allowed_languages": ["en", "ru"],
+})
+```
+
+Опции:
+- allowed_languages - разрешенные языки
+- default_language - Это язык по умолчанию, который будет выбран для сайта
+- route_match_name - Параметр для Route, который будет отвечать за язык. Обычно это lang
+
+Пример Route:
+```
+new RouteModel
+{
+	"uri": "/{lang}/page",
+	"name": "app:page",
+	"model": "App.Components.Pages.CustomPage.CustomPageModel",
+}
+```
+
+# PageNotFound
+
+Хук, который регистрирует компонент страница не найдена.
+
+Пример:
+```
+PageNotFound::hook("App.Components.Pages.NotFoundPage.NotFoundPageModel")
+```
+
+# SetupLayout
+
+Установка Layout для всего сайта. Позволяет зарегистрировать имена layout и определить для каждого из них модель.
+
+Пример:
+```
+/* Setup layout */
+SetupLayout::hook({
+	"default": "App.Components.Layout.DefaultLayoutModel",
+}),
+```
+
+## Правила БЭМ верстки
+
+Всегда в CSS используй эти правила для названия классов. Обязательно между блоком и элементом должен быть два нижних подчеркивания.
+
+Блок:
+- Название блока пишется в нижнем регистре.
+- Если название блока состоит из нескольких слов, слова разделяются одиночным нижним подчеркиванием (_).
+
+Пример:
+- index_page
+- header_main
+- user_card
+
+Элемент:
+- Имя элемента отделяется от имени блока двойным нижним подчеркиванием (__).
+- сли название элемента состоит из нескольких слов, слова также могут разделяться одиночным нижним подчеркиванием (например, main_content).
+
+Пример:
+- index_page__content
+- header_main__logo
+- user_card__avatar
+
+Модификатор:
+- Имя модификатора отделяется от имени блока или элемента двойным дефисом (--).
+- Если название модификатора состоит из нескольких слов, слова могут разделяться одиночным дефисом (-) или быть написаны слитно (в зависимости от ваших предпочтений, но --theme или --is-active — это распространенные варианты).
+
+Пример:
+- index_page--theme
+- header_main--dark
+- user_card--active
+- index_page__content--hidden
+- header_main__logo--small
+- user_card__avatar--round
+
+# Стили веб сайта
+
+## Размеры и отступы
+
+CSS переменные:
+```
+--font-family
+--font-size
+--font-size-h1
+--font-size-h2
+--font-size-h3
+--font-size-h4
+--font-size-h5
+--font-size-h6
+--font-input-size
+--line-height
+--space
+
+/* Border */
+--border-radius
+--border-radius-large
+--border-width
+
+/* Width */
+--content-max-width
+--content-tablet-width
+--content-mobile-width
+
+/* Дополнительные отступы */
+--padding-desktop
+--padding-tablet
+--padding-mobile
+```
+
+## Цветовая гамма сайта
+
+CSS переменные:
+```
+/* Color */
+--color-background
+--color-surface
+--color-border
+--color-shadow
+
+/* Primary Colors */
+--color-primary
+--color-primary-border
+--color-primary-hover
+--color-primary-text
+
+/* Secondary Colors */
+--color-secondary
+--color-secondary-border
+--color-secondary-hover
+--color-secondary-text
+
+/* Success Colors */
+--color-success
+--color-success-border
+--color-success-hover
+--color-success-text
+
+/* Danger Colors */
+--color-danger
+--color-danger-danger
+--color-danger-hover
+--color-danger-text
+
+/* Warning Colors */
+--color-warning
+--color-warning-border
+--color-warning-hover
+--color-warinng-text
+
+/* Info Colors */
+--color-info
+--color-info-border
+--color-info-hover
+--color-info-text
+
+/* Text Colors */
+--color-text
+--color-text-secondary
+--color-heading-text
+--color-link
+--color-link-hover
+
+/* Hover & Active States */
+--color-default-hover
+--color-selected
+--color-selected-text
+
+/* Shadow */
+--shadow-small
+--shadow-medium
+--shadow-large
+```
+
+# Шаблоны и компоненты
+
+BayLang использует концепцию Model Component.
+
+Это современный подход для создания полноценных Frontend приложений.
+
+Model - хранит состояние и бизнес логику приложения
+
+Component - отображает состояние на экране и производит рендер при изменения состояния.
+
+BayLang использует Vue фрэймворк для рендера компонентов.
+
+Существуют два вида компонентов:
+- Компоненты без модели
+- Компоненты с моделью.
+
+Использование модели необходимо, если вы хотите управлять состоянием компонента из другого компонента. Например:
+- появление диалоговых окон.
+- работа с таблицами и формами.
+- CRUD, работа с API
+- и т.п.
+
+## Пример простого компонента
+
+Компонент состоит из 3х секций.
+- Стили
+- Шаблон
+- Скрипт
+
+```
+<class name="App.Example">
+
+<style>
+.example{
+	color: pink;
+}
+</style>
+
+<template>
+	<div class="example">
+		Example component<br/>
+		{{ this.message }}
+	</div>
+</template>
+
+<script>
+string message = "";
+</script>
+
+</class>
+```
+
+В стилях указываются CSS стили оформления компонента.
+
+В шаблонах HTML код компонента
+
+В script - функции для работы с фронтенд компонентом. Обычно там указываются функции, необходимые для рендера.
+
+Если вам нужна бизнес логика, обращения по API, то этоn код стоит разместить в модели.
+
+## Имена шаблонов
+
+В компоненте может быть несколько шаблонов. Каждый шаблон должен обладать уникальным именем. По умолчанию имя шаблона render. Шаблон можно вызвать из другого шаблона.
+
+Пример:
+```
+<class name="App.Example">
+
+<template name="renderItem" args="Map item">
+	<div class="item">
+		{{ item }}
+	</div>
+</template>
+
+<template>
+	<div class="items">
+	%for (int i=0; i<this.items.count(); i++)
+	{
+		%render this.renderItem(this.items.get(i));
+	}
+	</div>
+</template>
+
+<script>
+
+Map items = [
+	"item 1",
+	"item 2",
+	"item 3",
+	"item 4",
+	"item 5",
+];
+
+</script>
+
+</class>
+```
+
+## Переменные
+
+Виды переменых в шаблоне:
+- Обычные переменные
+- Props. Это переменные, которые передаются в компонент из других компонентов
+- Вычисляемые переменные. Используются для оптимизации вычислений при рендере компонента. Computed переменная вычисляется и сохраняет свое значение. При изменении модели или данных компонента, она производит повторное вычисление.
+
+Пример:
+```
+<script>
+
+/* Обычная переменная */
+string message = "Hello world!";
+
+/* Props */
+props string name = "";
+
+/* Имя пользователя */
+computed string user_name()
+{
+	return this.name;
+}
+
+</script>
+```
+
+## События компонента
+
+Пример нажатия на кпопку
+```
+<class name="App.Example">
+
+<template>
+	<div class="example">
+		<div class="message">Hello, {{ this.message }}!</div>
+		<button @event:click="this.onClick()">
+			Click
+		</button>
+	</div>
+</template>
+
+<script>
+
+string message = "User";
+
+void onClick()
+{
+	this.message ~= "!";
+}
+
+</script>
+
+</class>
+```
+
+## Вызов компонентов из других компонентов
+
+```
+<class name="App.Example">
+
+<use name="Runtime.Widget.Button" component="true" />
+
+<template>
+	<div class="example">
+		<Button>Click</Button>
+	</div>
+</template>
+
+</class>
+```
+
+## Слоты
+
+Чтобы передать из одного компонента в другой шаблоны, нужно использовать слоты
+
+```
+<class name="App.Box">
+
+<template>
+	<div class="box">
+		<div class="box_header">
+			%render this.renderSlot("title");
+		</div>
+		<div class="box_content">
+			%render this.renderSlot("content");
+		</div>
+	</div>
+</template>
+
+</class>
+```
+
+Вызов компонента:
+```
+<class name="App.Example">
+
+<use name="App.Box" component="true" />
+
+<template>
+	<Box>
+		<slot name="title">
+			Title
+		</slot>
+		<slot name="content">
+			<p>Content</p>
+		</slot>
+	</Box>
+</template>
+
+</class>
+```
+
+## Типы переменных
+
+Скалярные типы:
+- int - целое число
+- double - вещественное число с двойной точностью
+- bool - логический тип
+- string - строка
+
+Объекты:
+- Vector - вектор
+- Map - Словарь, где ключи являются строки. Преобразование хэш функции объекта в строку нужно делать самостоятельно или с использование дополнительных библиотек.
+- Date, DateTime - Классы для работы с датой и временем
+
+## Стандартные классы
+
+- rlt - Runtime бибилотека с общими функциями
+- rs - Класс для работы со строками
+- re - Регулярные выражения
+- fs - Класс для работы с файловой системой
+
+## Переменные
+
+В BayLang принято использовать переменные в стиле snake case: в нижнем регистре и использовать подчеркивание. Это нужно, чтобы визуально отличать переменные от методов. Методы наоборот используют CamelCase.
+
+Пример:
+```
+int count = 0;
+string message = "Hello";
+bool is_active = false;
+Vector items = [];
+Map map = {};
+```
+
+Пример для шаблонов:
+```
+<template>
+    %set int count = 0;
+    %set string message = "Hello";
+    %set bool is_active = false;
+    %set Vector items = [];
+    %set Map map = {};
+</template>
+```
+
+## Условия
+
+Пример:
+```
+if (a > b)
+{
+    print ("A больше B");
+}
+else
+{
+    print ("A меньше или равно B");
+}
+```
+
+Условия в шаблонах:
+```
+<template>
+    %if (a > b)
+    {
+        <span>A больше B</span>
+    }
+    %else
+    {
+        <span>A меньши или равно B</span>
+    }
+</template>
+```
+
+## Циклы
+
+```
+int sum(Vector items)
+{
+    int result = 0;
+    for (int i=0; i<items.count(); i++)
+    {
+        sum += items.get(i);
+    }
+    return result;
+}
+```
+
+Цикл в шаблоне:
+```
+<template>
+    <div class="items">
+    %for (int i=0; i<this.items.count(); i++)
+    {
+        <div class="item">{{ this.items.get(i) }}</div>
+    }
+    </div>
+</template>
+```

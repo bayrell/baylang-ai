@@ -1,0 +1,31 @@
+{
+	"name": "App",
+	"assets":
+	[
+		"Components/Layout/DefaultLayout.bay",
+		"Components/Layout/DefaultLayoutModel.bay",
+		"Components/Pages/IndexPage/IndexPage.bay",
+		"Components/Pages/IndexPage/IndexPageModel.bay",
+		"Components/Pages/Migrations/MigrationPage.bay",
+		"Components/Pages/Migrations/MigrationPageModel.bay",
+		"Components/Pages/NotFoundPage/NotFoundPage.bay",
+		"Components/Pages/NotFoundPage/NotFoundPageModel.bay",
+		"Components/Routes.bay",
+		"ModuleDescription.bay"
+	],
+	"groups":
+	[
+		"app"
+	],
+	"src": "./bay",
+	"dest":
+	{
+		"php": "./php",
+		"es6": "./es6",
+		"nodejs": "./nodejs"
+	},
+	"allow":
+	[
+		"\\.bay$"
+	]
+}

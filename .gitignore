@@ -1,0 +1,7 @@
+.vscode/memory
+.vscode/history
+src/lib/App/es6
+src/lib/App/nodejs/*
+!src/lib/App/nodejs/index.js
+src/node_modules
+src/public/assets

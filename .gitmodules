@@ -1,0 +1,30 @@
+[submodule "src/lib/Runtime"]
+	path = src/lib/Runtime
+	url = https://github.com/bayrell/Runtime
+[submodule "src/lib/Runtime.Auth"]
+	path = src/lib/Runtime.Auth
+	url = https://github.com/bayrell/Runtime.Auth
+[submodule "src/lib/Runtime.AI"]
+	path = src/lib/Runtime.AI
+	url = https://github.com/bayrell/Runtime.AI
+[submodule "src/lib/Runtime.Cabinet"]
+	path = src/lib/Runtime.Cabinet
+	url = https://github.com/bayrell/Runtime.Cabinet
+[submodule "src/lib/Runtime.ORM"]
+	path = src/lib/Runtime.ORM
+	url = https://github.com/bayrell/Runtime.ORM
+[submodule "src/lib/Runtime.Web"]
+	path = src/lib/Runtime.Web
+	url = https://github.com/bayrell/Runtime.Web
+[submodule "src/lib/Runtime.Widget"]
+	path = src/lib/Runtime.Widget
+	url = https://github.com/bayrell/Runtime.Widget
+[submodule "src/lib/Runtime.Crypt"]
+	path = src/lib/Runtime.Crypt
+	url = https://github.com/bayrell/Runtime.Crypt
+[submodule "src/lib/Runtime.Unit"]
+	path = src/lib/Runtime.Unit
+	url = https://github.com/bayrell/Runtime.Unit
+[submodule "src/lib/Runtime.Console"]
+	path = src/lib/Runtime.Console
+	url = https://github.com/bayrell/Runtime.Console
