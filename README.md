@@ -1,54 +1,54 @@
-# Персональный AI-консультант
+# Personal AI Consultant
 
-AI-ассистент для выполнения различных задач и бизнес-проектов
+AI assistant for performing various tasks and business projects
 
-## О проекте
+## About the Project
 
-Это персональный AI-консультант, разработанный специально для специалистов и предпринимателей. Проект работает на передовой технологии BayLang, которая позволяет создавать эффективные и масштабируемые IT-системы.
+This is a personal AI consultant developed specifically for professionals and entrepreneurs. The project is based on the advanced BayLang technology, which allows creating efficient and scalable IT systems.
 
-## Особенности
+## Features
 
-- **Персональная разработка** — AI-ассистент, который адаптируется под ваши задачи
-- **Локальное развертывание** — работает в вашем приватном облаке на собственном сервере
-- **Автономность** — полная конфиденциальность данных и независимость от внешних сервисов
-- **Масштабируемость** — возможность интеграции с другими системами и расширения функционала
+- **Personal Development** — An AI assistant that adapts to your tasks
+- **Local Deployment** — Works in your private cloud on your own server
+- **Autonomy** — Full data privacy and independence from external services
+- **Scalability** — Ability to integrate with other systems and expand functionality
 
-## Установка и запуск
+## Installation and Launch
 
-### Требования
+### Requirements
 
-- Сервер с поддержкой ssh
-- Docker (рекомендуется для развертывания)
+- Server with SSH support
+- Docker (recommended for deployment)
 
-### Быстрый старт
+### Quick Start
 
 ```bash
-docker run --name ai ghcr.io/bayrell/baylang-ai
+docker run --name ai bayrell/baylang-ai
 ```
 
-## Использование
+## Usage
 
-AI-консультант доступен через:
+The AI consultant is available through:
 
-1. **Веб-интерфейс** — удобный доступ через браузер
-2. **API** — интеграция с внешними системами
+1. **Web Interface** — Convenient access via browser
+2. **API** — Integration with external systems
 
-## Технологии
+## Technologies
 
-- **Платформа**: BayLang
+- **Platform**: BayLang
 - **Backend**: NodeJS
-- **База данных**: MySQL версии 12.0 и выше
-- **Деплой**: Docker, Kubernetes
+- **Database**: MySQL version 12.0 and above
+- **Deployment**: Docker, Kubernetes
 
-## Поддержка и контакты
+## Support and Contacts
 
-- **GitHub Issues** — отчеты об ошибках и предложения [repository](https://github.com/bayrell/baylang-ai)
-- **Документация** — полное руководство в `/docs`
+- **GitHub Issues** — Bug reports and suggestions [repository](https://github.com/bayrell/baylang-ai)
+- **Documentation** — Complete guide in `/docs`
 
-## Лицензия
+## License
 
-Проект распространяется под лицензией Apache 2.0. Вы можете использовать, модифицировать и распространять код с соблюдением условий лицензии.
+The project is distributed under the Apache 2.0 license. You can use, modify, and distribute the code in accordance with the license terms.
 
-## Благодарности
+## Acknowledgments
 
-Спасибо сообществу BayLang за поддержку и вдохновение!
+Thanks to the BayLang community for support and inspiration!
