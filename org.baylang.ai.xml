@@ -12,7 +12,7 @@
 	<yaml>
 		<services>
 			<_var_app_name_>
-				<image>docker.io/bayrell/baylang-ai:1.0.0</image>
+				<image>ghcr.io/bayrell/baylang-ai:1.0.0</image>
 				<hostname>{{.Service.Name}}.{{.Task.ID}}.local</hostname>
 				<environment>
 					<MYSQL_HOST>_var_mysql_host</MYSQL_HOST>

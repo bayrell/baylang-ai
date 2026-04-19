@@ -42,6 +42,9 @@ html, body{
 		padding: var(--padding-mobile);
 	}
 }
+.page_title{
+	text-align: center;
+}
 .form_row__label.h-df7a{
 	font-weight: normal;
 }
