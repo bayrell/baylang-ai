@@ -36,7 +36,7 @@ class CabinetProvider extends BaseCabinetProvider
 	/**
 	 * Route before
 	 */
-	async void routeBefore(Map params)
+	async void setUser(Map params)
 	{
 		string token_name = this.settings.getTokenName();
 		
@@ -49,7 +49,16 @@ class CabinetProvider extends BaseCabinetProvider
 		};
 		
 		RenderContainer container = params.get("container");
-		container.layout.storage.backend.set(token_name, jwt);
+		container.layout.storage.backend.set(token_name, new UserData(jwt.data));
 		container.layout.storage.set(token_name, new UserData(jwt.data));
+	}
+	
+	
+	/**
+	 * Route before
+	 */
+	async void routeBeforeOld(Map params)
+	{
+		/*await this.setUser(params);*/
 	}
 }

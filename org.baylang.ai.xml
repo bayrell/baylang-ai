@@ -15,6 +15,7 @@
 				<image>bayrell/baylang-ai:1.0.0</image>
 				<hostname>{{.Service.Name}}.{{.Task.ID}}.local</hostname>
 				<environment>
+					<CABINET_AUTH_JWT_SECRET_KEY>_var_jwt_key_</CABINET_AUTH_JWT_SECRET_KEY>
 					<MYSQL_HOST>_var_mysql_host</MYSQL_HOST>
 					<MYSQL_USERNAME>_var_mysql_username</MYSQL_USERNAME>
 					<MYSQL_PASSWORD>_var_mysql_password</MYSQL_PASSWORD>
@@ -29,6 +30,11 @@
 	</yaml>
 	<variables>
 		<variable>
+			<name>_var_jwt_key_</name>
+			<label>JWT key</label>
+			<type>password</type>
+		</variable>
+		<variable>
 			<name>_var_mysql_host</name>
 			<label>MySQL host</label>
 			<type>string</type>
@@ -41,7 +47,7 @@
 		<variable>
 			<name>_var_mysql_password</name>
 			<label>MySQL password</label>
-			<type>string</type>
+			<type>password</type>
 		</variable>
 		<variable>
 			<name>_var_mysql_database</name>

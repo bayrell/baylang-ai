@@ -18,6 +18,7 @@
 
 namespace App.Components;
 
+use Runtime.Cabinet.CabinetMiddleware;
 use Runtime.Web.BaseRoute;
 use Runtime.Web.RedirectResponse;
 use Runtime.Web.RenderContainer;
@@ -34,6 +35,15 @@ class Routes extends BaseRoute
 	 * Returns layout name
 	 */
 	static string getLayoutName() => "cabinet";
+	
+	
+	/**
+	 * Returns middleware
+	 */
+	static Vector getMiddleware() =>
+	[
+		new CabinetMiddleware(),
+	];
 	
 	
 	/**

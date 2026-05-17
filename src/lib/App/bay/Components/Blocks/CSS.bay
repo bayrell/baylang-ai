@@ -22,6 +22,7 @@
 :root{
 	--color-primary: #3498db;
 	--color-primary-hover: #2980b9;
+	--cabinet-menu-height: 43px;
 	/*--font-size: 14px;
 	--font-input-size: 14px;*/
 }

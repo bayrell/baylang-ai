@@ -28,6 +28,7 @@ exports.init = function()
 	/* Framework */
 	include("/lib/Runtime/nodejs/index.js");
 	include("/lib/Runtime.Console/nodejs/index.js");
+	include("/lib/Runtime.Markdown/nodejs/index.js");
 	include("/lib/Runtime.ORM/nodejs/index.js");
 	include("/lib/Runtime.Unit/nodejs/index.js");
 	include("/lib/Runtime.Web/nodejs/index.js");

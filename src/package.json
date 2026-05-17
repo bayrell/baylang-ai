@@ -24,14 +24,15 @@
 		"AI"
 	],
 	"dependencies": {
-		"@fastify/formbody": "^8.0.0",
-		"@fastify/multipart": "^9.4.0",
-		"@fastify/static": "^9.0.0",
 		"@huggingface/transformers": "^4.0.0",
 		"bay-lang": "^1.2.2",
-		"fastify": "^5.8.0",
+		"bcrypt": "^6.0.0",
+		"busboy": "^1.6.0",
+		"cookie-parser": "^1.4.7",
+		"express": "^5.2.1",
 		"mysql2": "^3.20.0",
 		"sharp": "^0.34.5",
-		"vue": "^3.5.0"
+		"vue": "^3.5.0",
+		"ws": "^8.20.0"
 	}
 }

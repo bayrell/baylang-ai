@@ -1,0 +1,45 @@
+namespace App.Database;
+
+use Runtime.BaseObject;
+use Runtime.ORM.Record;
+use Runtime.ORM.Annotations.AutoIncrement;
+use Runtime.ORM.Annotations.BigIntType;
+use Runtime.ORM.Annotations.DateTimeType;
+use Runtime.ORM.Annotations.EnumType;
+use Runtime.ORM.Annotations.Primary;
+use Runtime.ORM.Annotations.StringType;
+use Runtime.ORM.Annotations.TextType;
+
+class PostRecord extends Record
+{
+	/**
+	 * Returns table name
+	 */
+	pure string getTableName() => "posts";
+	
+	
+	/**
+	 * Returns table schema
+	 */
+	pure memorize Collection<BaseObject> schema() =>
+	[
+		/* Fields */
+		new BigIntType{"name": "id"},
+		new BigIntType{"name": "space_id"},
+		new EnumType{"name": "type", "values": ["text", "file", "data", "code"]},
+		new StringType{"name": "title"},
+		new StringType{"name": "slug"},
+		new TextType{"name": "content"},
+		new BigIntType{"name": "category_id"},
+		new BigIntType{"name": "agent_id"},
+		new BigIntType{"name": "user_id"},
+		new BigIntType{"name": "version_id"},
+		new EnumType{"name": "status", "values": ["draft", "published", "archived"]},
+		new DateTimeType{"name": "gmtime_add", "autocreate": true},
+		new DateTimeType{"name": "gmtime_edit", "autoupdate": true},
+		
+		/* Index */
+		new AutoIncrement{"name": "id"},
+		new Primary{"keys": ["id"]},
+	];
+}

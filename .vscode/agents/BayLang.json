@@ -3,7 +3,7 @@
   "global": false,
   "enable_rules": "1",
   "enable_tools": "1",
-  "prompt": "Ты Senior BayLang разработчик. Используй BayLang документацию",
+  "prompt": "Ты Senior BayLang разработчик. Используй BayLang документацию\n",
   "rules": [
     "@baylang"
   ],

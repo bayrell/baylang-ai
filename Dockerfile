@@ -26,8 +26,8 @@ RUN npm run build
 RUN echo "Copy files" && \
 	cp /app/lib/Runtime.ORM/bay/MySQL/Adapter.js \
 		/app/lib/Runtime.ORM/nodejs/MySQL/Adapter.js && \
-	cp /app/lib/Runtime.Web/bay/Fastify.js \
-		/app/lib/Runtime.Web/nodejs/Fastify.js
+	cp /app/lib/Runtime.Web/bay/Express.js \
+		/app/lib/Runtime.Web/nodejs/Express.js
 
 # Switch to the created user
 USER node
