@@ -19,6 +19,7 @@
 namespace App.Components;
 
 use Runtime.Cabinet.CabinetMiddleware;
+use Runtime.Cabinet.Components.Pages.User.UserPageModel;
 use Runtime.Web.BaseRoute;
 use Runtime.Web.RedirectResponse;
 use Runtime.Web.RenderContainer;
@@ -74,6 +75,12 @@ class Routes extends BaseRoute
 			"name": "app:database:migrations",
 			"uri": "/{lang}/database/migrations",
 			"model": classof MigrationPageModel,
+		},
+		new RouteModel
+		{
+			"name": "app:settings:users",
+			"uri": "/{lang}/settings/users",
+			"model": classof UserPageModel,
 		}
 	];
 	

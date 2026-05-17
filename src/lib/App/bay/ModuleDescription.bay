@@ -86,6 +86,8 @@ class ModuleDescription
 		
 		#ifdef BACKEND then
 		new Api("App.Api.MigrationApi"),
+		new Api("Runtime.Cabinet.Api.UserSearchApi"),
+		new Api("Runtime.Cabinet.Api.UserSaveApi"),
 		new DatabaseConnection(),
 		CabinetProvider::hook(),
 		#endif
