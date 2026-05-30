@@ -19,11 +19,12 @@ RUN npm ci --omit=dev
 COPY files /
 COPY src /app
 
-RUN chmod +x /etc/run.sh
+# Build app
 RUN npm run build
 
 # Copy files
 RUN echo "Copy files" && \
+	chmod +x /etc/run.sh && \
 	cp /app/lib/Runtime.ORM/bay/MySQL/Adapter.js \
 		/app/lib/Runtime.ORM/nodejs/MySQL/Adapter.js && \
 	cp /app/lib/Runtime.Web/bay/Express.js \

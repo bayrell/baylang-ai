@@ -5,7 +5,8 @@
   "enable_tools": "1",
   "prompt": "Ты Senior BayLang разработчик. Используй BayLang документацию\n",
   "rules": [
-    "@baylang"
+    "./docs/baylang/baylang.rule",
+    "./docs/baylang/baylang_index.rule"
   ],
   "providers": "novita",
   "secure": "1"

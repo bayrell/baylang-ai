@@ -31,3 +31,6 @@
 [submodule "src/lib/Runtime.Markdown"]
 	path = src/lib/Runtime.Markdown
 	url = https://github.com/bayrell/Runtime.Markdown
+[submodule "docs/baylang"]
+	path = docs/baylang
+	url = https://github.com/bayrell/baylang-docs

@@ -10,7 +10,9 @@ alwaysApply: true
 - Краткое описание: Персональный ИИ
 
 Структура проекта:
-- vscode - Настройки VS Code
+- .vscode - Настройки VS Code
+- docs - Документация
+  - docs/baylang - Документация по BayLang
 - src/lib - Библиотеки Runtime
 - src/lib/App - Библиотека приложения
 - src/lib/Runtime - Runtime
