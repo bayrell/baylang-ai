@@ -2,7 +2,7 @@
 <template>
 	<uid>org.baylang.ai</uid>
 	<name>BayLang AI</name>
-	<version>v20260517</version>
+	<version>v20260623</version>
 	<maintainer>Ildar &lt;ildar@bayrell.org&gt;</maintainer>
 	<marketplace>https://baylang.com/</marketplace>
 	<xml name="baylang.com" priority="20">https://baylang.com/xml/org.baylang.ai.xml</xml>
@@ -12,7 +12,7 @@
 	<yaml>
 		<services>
 			<_var_app_name_>
-				<image>bayrell/baylang-ai:20260517</image>
+				<image>bayrell/baylang-ai:20260623</image>
 				<hostname>{{.Service.Name}}.{{.Task.ID}}.local</hostname>
 				<environment>
 					<CABINET_AUTH_JWT_SECRET_KEY>_var_jwt_key_</CABINET_AUTH_JWT_SECRET_KEY>
