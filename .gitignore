@@ -1,5 +1,6 @@
 .vscode/memory
 .vscode/history
+old
 src/lib/App/es6
 src/lib/App/nodejs/*
 !src/lib/App/nodejs/index.js

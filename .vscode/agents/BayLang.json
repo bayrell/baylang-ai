@@ -8,6 +8,6 @@
     "./docs/baylang/baylang.rule",
     "./docs/baylang/baylang_index.rule"
   ],
-  "providers": "novita",
+  "providers": "novita, siliconflow, atlas-cloud",
   "secure": "1"
 }
