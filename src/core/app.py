@@ -46,6 +46,10 @@ def register_routes():
     """Регистрация роутов"""
     from core.routes import router
     app.include_router(router)
+    
+    # Подключаем auth роуты
+    from core.auth.router import router as auth_router
+    router.include_router(auth_router)
 
 
 def register_frontend():

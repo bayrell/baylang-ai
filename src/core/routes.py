@@ -30,7 +30,3 @@ async def env(config: Config = Depends(get_config)):
     message = f"Here is an example of getting an environment variable: {value}"
     return {"message": message}
 
-
-# Подключаем auth роуты
-from core.auth.router import router as auth_router
-router.include_router(auth_router)
