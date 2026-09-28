@@ -1,0 +1,1 @@
+from core.database.migrations.migration import Migration
